@@ -1,0 +1,128 @@
+.container {
+  min-height: 100vh;
+  padding: 2rem;
+  background: var(--background);
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--foreground);
+}
+
+.boardContainer {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+  min-height: calc(100vh - 120px);
+  align-items: flex-start;
+}
+
+/* Column styles */
+.column {
+  min-width: 300px;
+  max-width: 300px;
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: var(--column-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.columnHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.5rem;
+}
+
+.columnTitle {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.taskCount {
+  background: var(--background);
+  color: var(--foreground);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 50px;
+}
+
+/* Task styles */
+.taskCard {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid var(--border);
+}
+
+.taskCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.taskCard:active {
+  cursor: grabbing;
+}
+
+.taskTitle {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.taskDesc {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.75rem;
+}
+
+.taskFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.priorityBadge {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.priority-High { background: #ffebe6; color: #bf2600; }
+.priority-Medium { background: #e3fcef; color: #006644; }
+.priority-Low { background: #deebff; color: #0747a6; }
+
+.assigneeAvatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
