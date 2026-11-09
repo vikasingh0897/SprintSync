@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { employeesApi } from '../../lib/api';
+import { employeesApi, API_URL } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import Link from 'next/link';
 
@@ -78,8 +78,8 @@ function ConfirmEmployeeContent() {
       } else {
         setError(res.message || 'Failed to confirm account.');
       }
-    } catch {
-      setError('Error connecting to backend server.');
+    } catch (err: any) {
+      setError(`Error connecting to backend server (${API_URL}): ${err?.message || 'Network connection failed'}`);
     } finally {
       setSubmitting(false);
     }

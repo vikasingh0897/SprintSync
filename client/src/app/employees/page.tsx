@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { EMPLOYEES as DEFAULT_EMPLOYEES, DEPARTMENTS, Employee } from '../../data/employees';
-import { employeesApi } from '../../lib/api';
+import { employeesApi, API_URL } from '../../lib/api';
 import { getSocket } from '../../lib/socket';
 
 const statusColors: Record<string, string> = {
@@ -143,8 +143,8 @@ export default function EmployeesPage() {
       } else {
         alert(res.message || 'Failed to invite employee.');
       }
-    } catch {
-      alert('Error connecting to backend server.');
+    } catch (err: any) {
+      alert(`Error connecting to backend server (${API_URL}):\n${err?.message || 'Network connection failed'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -159,8 +159,8 @@ export default function EmployeesPage() {
       } else {
         alert(res.message || 'Failed to resend confirmation email.');
       }
-    } catch {
-      alert('Error connecting to server.');
+    } catch (err: any) {
+      alert(`Error connecting to backend server (${API_URL}):\n${err?.message || 'Network connection failed'}`);
     } finally {
       setResendingId(null);
     }

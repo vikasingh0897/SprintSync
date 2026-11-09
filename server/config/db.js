@@ -75,11 +75,20 @@ async function seedInitialData() {
 
 async function connectDB() {
   mongoose.set('bufferCommands', false);
-  const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/sprintsync';
+  let uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/sprintsync';
+
+  // Ensure database name is present for MongoDB Atlas URIs ending with / or .net
+  if (uri.startsWith('mongodb+srv://')) {
+    if (uri.endsWith('.mongodb.net/')) {
+      uri = uri + 'sprintsync?retryWrites=true&w=majority';
+    } else if (uri.endsWith('.mongodb.net')) {
+      uri = uri + '/sprintsync?retryWrites=true&w=majority';
+    }
+  }
 
   try {
     const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 2000,
+      serverSelectionTimeoutMS: 5000,
     });
     isConnected = true;
     console.log(`[MongoDB] Connected successfully: ${conn.connection.host}/${conn.connection.name}`);

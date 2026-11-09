@@ -21,7 +21,7 @@ services:
       - key: PORT
         value: 10000
       - key: CLIENT_URL
-        value: https://sprintsync-frontend.onrender.com
+        value: https://sprintsync-frontend-br5h.onrender.com
       - key: MONGODB_URI
         sync: false # Set your MongoDB Atlas URI in Render dashboard
       - key: JWT_SECRET
@@ -34,11 +34,11 @@ services:
       - key: SMTP_PORT
         value: 587
       - key: SMTP_USER
-        sync: false # Set your email in Render dashboard (e.g. yourname@gmail.com)
+        sync: false # Set your email in Render dashboard (e.g. vikas@web3task.com)
       - key: SMTP_PASS
-        sync: false # Set your 16-character App Password in Render dashboard
+        sync: false # Set your 16-character App Password in Render dashboard (e.g. juayadwtcfgifxom)
       - key: FROM_EMAIL
-        sync: false # Set sender email (e.g. yourname@gmail.com)
+        sync: false # Set sender email (e.g. vikas@web3task.com)
       - key: FROM_NAME
         value: "SprintSync Team"
 
@@ -56,6 +56,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        value: https://sprintsync-api.onrender.com/api
+        sync: false # Set to https://<your-backend-slug>.onrender.com/api in Render Dashboard
       - key: NEXT_PUBLIC_SOCKET_URL
-        value: https://sprintsync-api.onrender.com
+        sync: false # Set to https://<your-backend-slug>.onrender.com in Render Dashboard

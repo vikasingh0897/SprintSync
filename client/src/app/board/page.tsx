@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Board } from '../../components/Board';
-import { sprintsApi } from '../../lib/api';
+import { sprintsApi, API_URL } from '../../lib/api';
 import { getSocket } from '../../lib/socket';
 
 interface Sprint {
@@ -120,8 +120,8 @@ export default function BoardPage() {
       } else {
         alert(res.message || 'Failed to create sprint');
       }
-    } catch {
-      alert('Error connecting to backend server');
+    } catch (err: any) {
+      alert(`Error connecting to backend server (${API_URL}):\n${err?.message || 'Network connection failed'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -141,8 +141,8 @@ export default function BoardPage() {
           setSelectedSprintId(remaining[0]._id || remaining[0].id || '');
         }
       }
-    } catch {
-      alert('Error deleting sprint');
+    } catch (err: any) {
+      alert(`Error deleting sprint (${API_URL}):\n${err?.message || 'Network connection failed'}`);
     }
   };
 

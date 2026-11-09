@@ -6,13 +6,14 @@ const devEmailOutbox = [];
 // Initialize transporter
 async function initTransporter() {
   if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const cleanPass = process.env.SMTP_PASS.replace(/\s+/g, '');
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: Number(process.env.SMTP_PORT) || 587,
       secure: Number(process.env.SMTP_PORT) === 465,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: process.env.SMTP_USER.trim(),
+        pass: cleanPass,
       },
     });
     console.log('[EmailService] Using configured SMTP transporter:', process.env.SMTP_HOST);
@@ -56,7 +57,9 @@ async function sendMail({ to, subject, html, text }) {
     await initTransporter();
   }
 
-  const from = `"${process.env.FROM_NAME || 'SprintSync Team'}" <${process.env.FROM_EMAIL || 'no-reply@sprintsync.io'}>`;
+  // For Gmail SMTP, sender must match authenticated user or configured FROM_EMAIL
+  const senderEmail = process.env.FROM_EMAIL || process.env.SMTP_USER || 'no-reply@sprintsync.io';
+  const from = `"${process.env.FROM_NAME || 'SprintSync Team'}" <${senderEmail}>`;
 
   try {
     const info = await transporter.sendMail({
