@@ -16,6 +16,9 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@tailwindcss/container-queries": "^0.1.1",
     "@tailwindcss/forms": "^0.5.11",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "autoprefixer": "^10.5.3",
     "dnd-kit": "^0.0.2",
     "next": "16.2.10",
@@ -23,14 +26,11 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "socket.io-client": "^4.8.1",
-    "tailwindcss": "^3.4.19"
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
-    "typescript": "^5"
+    "eslint-config-next": "16.2.10"
   }
 }
