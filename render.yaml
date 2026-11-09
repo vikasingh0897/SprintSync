@@ -1,0 +1,49 @@
+# ==============================================================
+# Render Infrastructure Blueprint for SprintSync Monorepo
+# Deploys both Backend (Express + Socket.io) and Frontend (Next.js)
+# ==============================================================
+
+services:
+  # ────────────────────────────────────────────────────────────
+  # 1. Backend Web Service (Node.js + Express + Socket.IO)
+  # ────────────────────────────────────────────────────────────
+  - type: web
+    name: sprintsync-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CLIENT_URL
+        value: https://sprintsync-frontend.onrender.com
+      - key: MONGODB_URI
+        sync: false # Set your MongoDB Atlas URI in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRE
+        value: 7d
+
+  # ────────────────────────────────────────────────────────────
+  # 2. Frontend Web Service (Next.js 16 Production)
+  # ────────────────────────────────────────────────────────────
+  - type: web
+    name: sprintsync-frontend
+    runtime: node
+    plan: free
+    rootDir: client
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://sprintsync-api.onrender.com/api
+      - key: NEXT_PUBLIC_SOCKET_URL
+        value: https://sprintsync-api.onrender.com
+
