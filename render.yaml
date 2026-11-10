@@ -56,6 +56,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        sync: false # Set to https://<your-backend-slug>.onrender.com/api in Render Dashboard
+        value: https://sprintsync-api-61jv.onrender.com/api
       - key: NEXT_PUBLIC_SOCKET_URL
-        sync: false # Set to https://<your-backend-slug>.onrender.com in Render Dashboard
+        value: https://sprintsync-api-61jv.onrender.com
