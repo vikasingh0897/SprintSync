@@ -87,8 +87,8 @@ app.use((err, req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`⚡ SprintSync Backend listening on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`⚡ SprintSync Backend listening on port ${PORT} (0.0.0.0)`);
   console.log(`  🌐 Configured Client origin: ${clientUrl}`);
   console.log(`  📡 WebSocket server active`);
 });
