@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { getApiUrl } from '../../lib/api';
+import { resetSocket } from '../../lib/socket';
 
 type Theme = 'dark' | 'light' | 'system';
 
@@ -72,6 +74,11 @@ export default function SettingsPage() {
   const [saved, setSaved]   = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Backend URL configuration
+  const [backendUrl, setBackendUrl] = useState('');
+  const [testingBackend, setTestingBackend] = useState(false);
+  const [backendFeedback, setBackendFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+
   // ── restore saved preferences on mount ────────────────────────────────
   useEffect(() => {
     const savedTheme  = (localStorage.getItem('ss_theme')  ?? 'dark') as Theme;
@@ -86,7 +93,35 @@ export default function SettingsPage() {
     const root = document.documentElement;
     root.classList.remove('theme-indigo', 'theme-violet', 'theme-pink', 'theme-cyan', 'theme-emerald', 'theme-amber');
     root.classList.add(`theme-${savedAccent}`);
+
+    // Load backend URL
+    const customBackend = localStorage.getItem('ss_backend_url');
+    setBackendUrl(customBackend || getApiUrl().replace(/\/api\/?$/, ''));
   }, []);
+
+  const handleTestBackend = async () => {
+    if (!backendUrl.trim()) return;
+    setTestingBackend(true);
+    setBackendFeedback(null);
+    const clean = backendUrl.trim().replace(/\/api\/?$/, '');
+    try {
+      const res = await fetch(`${clean}/api/health`, {
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        localStorage.setItem('ss_backend_url', clean);
+        resetSocket();
+        setBackendFeedback({ ok: true, message: `Connected to ${clean}! Reloading data...` });
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        setBackendFeedback({ ok: false, message: `Server returned HTTP ${res.status}. Check if sleeping on Render.` });
+      }
+    } catch (err: any) {
+      setBackendFeedback({ ok: false, message: `Connection failed: ${err.message || 'Cannot reach server'}` });
+    } finally {
+      setTestingBackend(false);
+    }
+  };
 
   // ── theme switch ───────────────────────────────────────────────────────
   const handleThemeChange = (t: Theme) => {
@@ -287,6 +322,65 @@ export default function SettingsPage() {
               <span className="material-symbols-outlined text-[18px]">person_add</span>
               Invite
             </button>
+          </div>
+        </div>
+
+        {/* ── Backend Server Connection ── */}
+        <div className={card}>
+          <h3 className="text-base font-bold text-white mb-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-indigo-400 text-[20px]">dns</span>
+            Backend Connection
+          </h3>
+          <p className="text-xs text-gray-400 mb-4">
+            Configure the live API & WebSocket server endpoint. If hosted on Render, paste your backend URL here.
+          </p>
+
+          <div className="space-y-3">
+            <div>
+              <label className={label}>Backend URL</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={backendUrl}
+                  onChange={e => setBackendUrl(e.target.value)}
+                  placeholder="https://sprintsync-api-xxxx.onrender.com"
+                  className={input}
+                />
+                <button
+                  type="button"
+                  onClick={handleTestBackend}
+                  disabled={testingBackend}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shrink-0 transition flex items-center gap-1.5"
+                >
+                  {testingBackend ? (
+                    <>
+                      <span className="material-symbols-outlined text-sm animate-spin">refresh</span>
+                      Testing
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">link</span>
+                      Test & Connect
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {backendFeedback && (
+              <div
+                className={`p-3 rounded-xl text-xs font-medium border flex items-center gap-2 ${
+                  backendFeedback.ok
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">
+                  {backendFeedback.ok ? 'check_circle' : 'error'}
+                </span>
+                <span>{backendFeedback.message}</span>
+              </div>
+            )}
           </div>
         </div>
 

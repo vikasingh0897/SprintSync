@@ -1,4 +1,36 @@
 // SprintSync API Client
+
+/**
+ * Returns active backend API URL.
+ * Checks localStorage first (allowing instant URL configuration or override in browser),
+ * then falls back to build-time NEXT_PUBLIC_API_URL or localhost.
+ */
+export function getApiUrl(): string {
+  if (typeof window !== 'undefined') {
+    const custom = localStorage.getItem('ss_backend_url');
+    if (custom && custom.trim()) {
+      return custom.trim().replace(/\/api\/?$/, '') + '/api';
+    }
+  }
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  return envUrl.replace(/\/api\/?$/, '') + '/api';
+}
+
+export function getSocketUrl(): string {
+  if (typeof window !== 'undefined') {
+    const custom = localStorage.getItem('ss_backend_url');
+    if (custom && custom.trim()) {
+      return custom.trim().replace(/\/api\/?$/, '');
+    }
+  }
+  const socketEnv = process.env.NEXT_PUBLIC_SOCKET_URL;
+  if (socketEnv && socketEnv.trim()) return socketEnv.trim();
+  const apiEnv = process.env.NEXT_PUBLIC_API_URL;
+  if (apiEnv && apiEnv.trim()) return apiEnv.trim().replace(/\/api\/?$/, '');
+  return 'http://localhost:5000';
+}
+
+// Deprecated export for backwards compatibility
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 /**
@@ -17,10 +49,11 @@ async function handleResponse(res: Response) {
 
   // Handle non-JSON responses (Render error pages, 503 suspended, cold start delays)
   const text = await res.text();
+  const currentBase = getApiUrl();
   if (res.status === 503) {
     return {
       success: false,
-      message: `Backend service is unavailable or suspended (HTTP 503). Please verify your backend service is running on Render and that NEXT_PUBLIC_API_URL is configured to your active backend URL (attempted: ${API_URL}).`,
+      message: `Backend service is unavailable or suspended (HTTP 503). Current URL: ${currentBase}. Verify your backend URL in Render.`,
     };
   }
   if (res.status === 502 || res.status === 504) {
@@ -32,7 +65,7 @@ async function handleResponse(res: Response) {
   if (res.status === 404) {
     return {
       success: false,
-      message: `Backend API route not found (HTTP 404) at ${res.url}. Please verify your backend URL in Render environment settings.`,
+      message: `Backend API route not found (HTTP 404) at ${res.url}. Please verify your backend URL in Render settings.`,
     };
   }
 
@@ -44,6 +77,7 @@ async function handleResponse(res: Response) {
 
 export async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('ss_token') : null;
+  const baseUrl = getApiUrl();
 
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
@@ -51,7 +85,7 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const response = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
     headers,
   });
@@ -105,11 +139,11 @@ export const employeesApi = {
     return await handleResponse(res);
   },
   async verifyInvite(token: string) {
-    const res = await fetch(`${API_URL}/employees/verify-invite?token=${encodeURIComponent(token)}`);
+    const res = await fetch(`${getApiUrl()}/employees/verify-invite?token=${encodeURIComponent(token)}`);
     return await handleResponse(res);
   },
   async confirmInvite(data: { token: string; password: string }) {
-    const res = await fetch(`${API_URL}/employees/confirm-invite`, {
+    const res = await fetch(`${getApiUrl()}/employees/confirm-invite`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

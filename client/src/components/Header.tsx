@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePathname } from 'next/navigation';
 import { notificationsApi } from '../lib/api';
 import { getSocket } from '../lib/socket';
+import { BackendStatusPill } from './BackendModal';
 
 const NAV_LINKS = [
   { href: '/',          label: 'Dashboard', icon: 'dashboard'   },
@@ -168,6 +169,7 @@ export function Header() {
 
         {/* ── User area ── */}
         <div className="flex items-center gap-2">
+          <BackendStatusPill />
           {user ? (
             <>
               {/* Notification Popover */}
