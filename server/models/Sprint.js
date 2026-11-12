@@ -25,6 +25,10 @@ const sprintSchema = new mongoose.Schema(
       enum: ['planning', 'active', 'completed'],
       default: 'active',
     },
+    endNotified: {
+      type: Boolean,
+      default: false,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

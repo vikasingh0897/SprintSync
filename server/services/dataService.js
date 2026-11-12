@@ -48,6 +48,10 @@ const sprintService = {
     if (isDbActive()) return await Sprint.findOne({ status: 'active' });
     return memSprints.find((s) => s.status === 'active') || null;
   },
+  async findById(id) {
+    if (isDbActive()) return await Sprint.findById(id);
+    return memSprints.find((s) => s._id.toString() === id.toString()) || null;
+  },
   async create(data) {
     if (isDbActive()) {
       if (data.status === 'active') {

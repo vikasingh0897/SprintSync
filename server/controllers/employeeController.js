@@ -103,9 +103,14 @@ const inviteEmployee = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Employee invited successfully and confirmation email sent.',
+      message: emailResult.success
+        ? 'Employee invited successfully and confirmation email sent.'
+        : 'Employee invited, but confirmation email could not be delivered.',
       data: newEmployee,
       confirmationLink,
+      emailSent: !!emailResult.success,
+      emailProvider: emailResult.provider || null,
+      emailError: emailResult.error || null,
       emailPreviewUrl: emailResult.previewUrl || null,
     });
   } catch (error) {
@@ -248,8 +253,13 @@ const resendConfirmation = async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'Confirmation email resent successfully',
+      message: emailResult.success
+        ? 'Confirmation email resent successfully'
+        : 'Confirmation link regenerated, but email delivery failed.',
       confirmationLink,
+      emailSent: !!emailResult.success,
+      emailProvider: emailResult.provider || null,
+      emailError: emailResult.error || null,
       emailPreviewUrl: emailResult.previewUrl || null,
     });
   } catch (error) {

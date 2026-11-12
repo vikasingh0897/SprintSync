@@ -67,6 +67,15 @@ export default function BoardPage() {
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [sprintFilterTab, setSprintFilterTab] = useState<'all' | 'active' | 'planning' | 'completed'>('all');
 
+  // Brevo Email notification modal & feedback banner
+  const [notifyTeamOnCreate, setNotifyTeamOnCreate] = useState(true);
+  const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
+  const [notifyTargetSprint, setNotifyTargetSprint] = useState<Sprint | null>(null);
+  const [notifyTitle, setNotifyTitle] = useState('');
+  const [notifyMessage, setNotifyMessage] = useState('');
+  const [isSendingNotify, setIsSendingNotify] = useState(false);
+  const [emailToast, setEmailToast] = useState<{ type: 'success' | 'warning'; text: string } | null>(null);
+
   // Load sprints on mount (zero dummy fallback)
   useEffect(() => {
     sprintsApi.getAll()
@@ -148,6 +157,7 @@ export default function BoardPage() {
     setDurationDays(14);
     setStartDate(today);
     setEndDate(addDaysToIso(today, 14));
+    setNotifyTeamOnCreate(true);
     setIsSprintModalOpen(true);
   };
 
@@ -162,6 +172,49 @@ export default function BoardPage() {
     setStartDate(start);
     setEndDate(end);
     setIsSprintModalOpen(true);
+  };
+
+  const openNotifyModal = (sprint: Sprint) => {
+    setNotifyTargetSprint(sprint);
+    setNotifyTitle(`Sprint Update: ${sprint.name}`);
+    setNotifyMessage(
+      sprint.status === 'completed'
+        ? ''
+        : `Hi Team, please review and update your assigned tasks in "${sprint.name}"${sprint.endDate ? ` before ${formatShortDate(sprint.endDate)}` : ''}.`
+    );
+    setIsNotifyModalOpen(true);
+  };
+
+  const handleSendNotifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notifyTargetSprint) return;
+    const id = notifyTargetSprint._id || notifyTargetSprint.id || '';
+    if (!id) return;
+
+    setIsSendingNotify(true);
+    try {
+      const res = await sprintsApi.notify(id, {
+        title: notifyTitle.trim() || undefined,
+        message: notifyMessage.trim() || undefined,
+      });
+      if (res.success) {
+        setIsNotifyModalOpen(false);
+        setEmailToast({
+          type: res.emailSent === false ? 'warning' : 'success',
+          text:
+            res.emailSent === false
+              ? `In-app notification sent, but Brevo email failed: ${res.emailError || 'Check email configuration.'}`
+              : `${res.message || 'Sprint notification email sent'}${res.emailProvider ? ` (${res.emailProvider})` : ''}.`,
+        });
+        setTimeout(() => setEmailToast(null), 6000);
+      } else {
+        alert(res.message || 'Failed to send sprint notification');
+      }
+    } catch (err: any) {
+      alert(`Error connecting to backend server (${API_URL}):\n${err?.message || 'Network connection failed'}`);
+    } finally {
+      setIsSendingNotify(false);
+    }
   };
 
   const handleStartDateChange = (newStart: string) => {
@@ -206,6 +259,15 @@ export default function BoardPage() {
               return s;
             })
           );
+          if (sprintStatus === 'completed' && res.emailSent !== undefined) {
+            setEmailToast({
+              type: res.emailSent ? 'success' : 'warning',
+              text: res.emailSent
+                ? `Sprint completed! End summary email dispatched via ${res.emailProvider || 'email service'}.`
+                : `Sprint completed, but summary email failed: ${res.emailError || 'Check Brevo configuration.'}`,
+            });
+            setTimeout(() => setEmailToast(null), 6000);
+          }
           setIsSprintModalOpen(false);
         } else {
           alert(res.message || 'Failed to update sprint');
@@ -217,6 +279,7 @@ export default function BoardPage() {
           startDate,
           endDate,
           status: sprintStatus,
+          notifyTeam: notifyTeamOnCreate,
         });
 
         if (res.success && res.data) {
@@ -230,6 +293,15 @@ export default function BoardPage() {
             return [newSprint, ...base.filter((s) => (s._id || s.id) !== newId)];
           });
           setSelectedSprintId(newId);
+          if (notifyTeamOnCreate && res.emailSent !== undefined) {
+            setEmailToast({
+              type: res.emailSent ? 'success' : 'warning',
+              text: res.emailSent
+                ? `Sprint "${newSprint.name}" created & team notified via ${res.emailProvider || 'Brevo'}.`
+                : `Sprint created, but team email failed: ${res.emailError || 'Check Brevo configuration.'}`,
+            });
+            setTimeout(() => setEmailToast(null), 6000);
+          }
           setIsSprintModalOpen(false);
         } else {
           alert(res.message || 'Failed to create sprint');
@@ -256,6 +328,15 @@ export default function BoardPage() {
           })
         );
         if (status === 'active') setSelectedSprintId(sprintId);
+        if (status === 'completed' && res.emailSent !== undefined) {
+          setEmailToast({
+            type: res.emailSent ? 'success' : 'warning',
+            text: res.emailSent
+              ? `Sprint marked Completed! End summary email sent via ${res.emailProvider || 'Brevo'}.`
+              : `Sprint marked Completed, but summary email failed: ${res.emailError || 'Check Brevo configuration.'}`,
+          });
+          setTimeout(() => setEmailToast(null), 6000);
+        }
       } else {
         alert(res.message || 'Failed to update sprint status');
       }
@@ -399,6 +480,18 @@ export default function BoardPage() {
               </button>
             )}
 
+            {/* Notify Team via Brevo Email */}
+            {currentSprint && (
+              <button
+                onClick={() => openNotifyModal(currentSprint)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-semibold transition-all"
+                title="Send Sprint Notification / Summary Email via Brevo"
+              >
+                <span className="material-symbols-outlined text-[17px]">mail</span>
+                <span>Notify Team</span>
+              </button>
+            )}
+
             {/* New Sprint Button */}
             <button
               onClick={openCreateSprintModal}
@@ -419,6 +512,26 @@ export default function BoardPage() {
             </button>
           </div>
         </div>
+
+        {emailToast && (
+          <div
+            className={`mt-3 px-4 py-2.5 rounded-xl border text-xs font-medium flex items-center justify-between gap-3 ${
+              emailToast.type === 'success'
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px]">
+                {emailToast.type === 'success' ? 'mark_email_read' : 'warning'}
+              </span>
+              <span>{emailToast.text}</span>
+            </div>
+            <button onClick={() => setEmailToast(null)} className="text-gray-400 hover:text-white">
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Empty State Banner when user has 0 sprints */}
@@ -579,6 +692,20 @@ export default function BoardPage() {
                 </select>
               </div>
 
+              {!editingSprintId && (
+                <label className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 cursor-pointer hover:bg-white/[0.06] transition">
+                  <input
+                    type="checkbox"
+                    checked={notifyTeamOnCreate}
+                    onChange={(e) => setNotifyTeamOnCreate(e.target.checked)}
+                    className="rounded border-white/20 bg-[#181a26] text-indigo-500 focus:ring-indigo-500"
+                  />
+                  <span className="text-xs text-gray-300">
+                    Notify all team members via Brevo email when sprint starts
+                  </span>
+                </label>
+              )}
+
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
@@ -710,6 +837,16 @@ export default function BoardPage() {
                         <button
                           onClick={() => {
                             setIsManageModalOpen(false);
+                            openNotifyModal(s);
+                          }}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition"
+                          title="Notify Team via Email"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">mail</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsManageModalOpen(false);
                             openEditSprintModal(s);
                           }}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-400 hover:bg-white/5 transition"
@@ -730,6 +867,89 @@ export default function BoardPage() {
                 })
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Notify Team via Brevo Modal ── */}
+      {isNotifyModalOpen && notifyTargetSprint && (
+        <div
+          className="fixed inset-0 z-[310] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsNotifyModalOpen(false);
+          }}
+        >
+          <div className="w-full max-w-md bg-[#1d1f29] border border-white/10 rounded-2xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[18px]">mail</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Notify Team</h3>
+                  <p className="text-[11px] text-gray-400">{notifyTargetSprint.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsNotifyModalOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSendNotifyEmail} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Email Subject / Title
+                </label>
+                <input
+                  type="text"
+                  value={notifyTitle}
+                  onChange={(e) => setNotifyTitle(e.target.value)}
+                  placeholder={`Sprint Update: ${notifyTargetSprint.name}`}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/60"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Message for Team Members
+                </label>
+                <textarea
+                  rows={3}
+                  value={notifyMessage}
+                  onChange={(e) => setNotifyMessage(e.target.value)}
+                  placeholder={
+                    notifyTargetSprint.status === 'completed'
+                      ? 'Leave blank to send automatic Sprint End completion summary stats, or type a custom note.'
+                      : 'Enter reminder or status update...'
+                  }
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/60 resize-none"
+                />
+              </div>
+
+              <p className="text-[11px] text-gray-400">
+                Dispatched via Brevo email + real-time in-app notification to all team members.
+              </p>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsNotifyModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSendingNotify}
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-all shadow-lg shadow-emerald-500/20"
+                >
+                  {isSendingNotify ? 'Sending...' : 'Send Email Notification'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

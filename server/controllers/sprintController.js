@@ -1,10 +1,69 @@
-const { sprintService, notificationService } = require('../services/dataService');
+const { sprintService, employeeService, taskService, notificationService } = require('../services/dataService');
+const { sendSprintEndedEmail, sendSprintNotificationEmail } = require('../services/emailService');
 const {
   emitSprintCreated,
   emitSprintDeleted,
   emitSprintUpdated,
   emitNotification,
 } = require('../sockets/socketHandler');
+
+let isCheckingExpiredSprints = false;
+
+/**
+ * Collect unique recipient emails from all employees (with optional admin/sender fallback).
+ */
+async function getTeamRecipientEmails() {
+  const employees = await employeeService.getAll();
+  const emails = new Set();
+
+  for (const emp of employees) {
+    if (emp && emp.email) {
+      emails.add(emp.email.trim().toLowerCase());
+    }
+  }
+
+  if (emails.size === 0) {
+    const fallback = process.env.ADMIN_EMAIL || process.env.BREVO_SENDER_EMAIL || process.env.FROM_EMAIL;
+    if (fallback && fallback.includes('@') && !fallback.endsWith('@sprintsync.io')) {
+      emails.add(fallback.trim().toLowerCase());
+    }
+  }
+
+  return Array.from(emails);
+}
+
+/**
+ * Compute task stats for a sprint from Task collection.
+ */
+async function getSprintTaskStats(sprintId) {
+  const tasks = await taskService.getAll({ sprintId: sprintId.toString() });
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((t) => t.columnId === 'col-done').length;
+  const inProgressTasks = tasks.filter((t) => t.columnId === 'col-inprogress').length;
+  return { totalTasks, completedTasks, inProgressTasks };
+}
+
+/**
+ * Send Sprint Ended summary email via Brevo and record in-app notification.
+ */
+async function sendEndEmailForSprint(sprint) {
+  const sprintId = sprint._id || sprint.id;
+  const recipients = await getTeamRecipientEmails();
+  const stats = await getSprintTaskStats(sprintId);
+
+  const emailResult = await sendSprintEndedEmail(recipients, sprint, stats);
+  await sprintService.update(sprintId, { endNotified: true });
+
+  const notif = await notificationService.create({
+    title: `Sprint Ended: ${sprint.name}`,
+    message: `"${sprint.name}" is completed (${stats.completedTasks}/${stats.totalTasks} tasks done).${emailResult.success ? ' Summary email sent to team.' : ''}`,
+    type: 'sprint_update',
+    data: { sprintId, status: 'completed', emailSent: !!emailResult.success },
+  });
+  emitNotification(notif);
+
+  return { ...emailResult, recipientCount: recipients.length };
+}
 
 // @desc    Get all sprints
 // @route   GET /api/sprints
@@ -35,7 +94,7 @@ const getActiveSprint = async (req, res) => {
 // @access  Private
 const createSprint = async (req, res) => {
   try {
-    const { name, goal, startDate, endDate, status } = req.body;
+    const { name, goal, startDate, endDate, status, notifyTeam } = req.body;
 
     if (!name) {
       return res.status(400).json({ success: false, message: 'Sprint name is required' });
@@ -62,7 +121,25 @@ const createSprint = async (req, res) => {
     });
     emitNotification(notif);
 
-    return res.status(201).json({ success: true, data: newSprint });
+    // Optionally notify team via Brevo email when sprint is created
+    let emailResult = null;
+    if (notifyTeam) {
+      const recipients = await getTeamRecipientEmails();
+      const senderName = req.user?.name || req.user?.email || 'SprintSync Admin';
+      const title = `New Sprint Started: ${newSprint.name}`;
+      const message = newSprint.goal
+        ? `Sprint "${newSprint.name}" has been launched. Goal: ${newSprint.goal}`
+        : `Sprint "${newSprint.name}" has been created. Head to the Kanban Board to view and pick up tasks.`;
+      emailResult = await sendSprintNotificationEmail(recipients, newSprint, title, message, senderName);
+    }
+
+    return res.status(201).json({
+      success: true,
+      data: newSprint,
+      emailSent: emailResult ? !!emailResult.success : undefined,
+      emailProvider: emailResult?.provider || undefined,
+      emailError: emailResult?.error || undefined,
+    });
   } catch (error) {
     console.error('[SprintController] Create error:', error);
     return res.status(500).json({ success: false, message: error.message });
@@ -75,17 +152,112 @@ const createSprint = async (req, res) => {
 const updateSprint = async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = await sprintService.update(id, req.body);
+    const existing = await sprintService.findById(id);
 
-    if (!updated) {
+    if (!existing) {
       return res.status(404).json({ success: false, message: 'Sprint not found' });
     }
+
+    const updatePayload = { ...req.body };
+    if (updatePayload.status && updatePayload.status !== 'completed' && existing.status === 'completed') {
+      updatePayload.endNotified = false;
+    }
+
+    const updated = await sprintService.update(id, updatePayload);
 
     // ── Real-time Socket Broadcast ──
     emitSprintUpdated(updated);
 
+    // Automatically email team via Brevo when sprint transitions to 'completed'
+    let emailResult = null;
+    if (updated.status === 'completed' && (existing.status !== 'completed' || !existing.endNotified)) {
+      emailResult = await sendEndEmailForSprint(updated);
+      const refreshed = await sprintService.findById(id);
+      return res.json({
+        success: true,
+        data: refreshed || updated,
+        emailSent: !!emailResult.success,
+        emailProvider: emailResult.provider || null,
+        emailError: emailResult.error || null,
+        emailPreviewUrl: emailResult.previewUrl || null,
+      });
+    }
+
     return res.json({ success: true, data: updated });
   } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Send manual Sprint update / reminder email via Brevo
+// @route   POST /api/sprints/:id/notify
+// @access  Private
+const notifySprint = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, message } = req.body || {};
+
+    const sprint = await sprintService.findById(id);
+    if (!sprint) {
+      return res.status(404).json({ success: false, message: 'Sprint not found' });
+    }
+
+    const recipients = await getTeamRecipientEmails();
+    const senderName = req.user?.name || req.user?.email || 'SprintSync Team';
+
+    let emailResult;
+    let notifTitle;
+    let notifMessage;
+
+    if (sprint.status === 'completed' && !message) {
+      emailResult = await sendEndEmailForSprint(sprint);
+      return res.json({
+        success: true,
+        message: emailResult.success
+          ? `Sprint summary email sent to ${recipients.length} team member(s).`
+          : 'Sprint notification logged, but email delivery failed.',
+        recipientCount: recipients.length,
+        emailSent: !!emailResult.success,
+        emailProvider: emailResult.provider || null,
+        emailError: emailResult.error || null,
+        emailPreviewUrl: emailResult.previewUrl || null,
+      });
+    } else {
+      notifTitle = (title && title.trim()) || `Sprint Update: ${sprint.name}`;
+      notifMessage =
+        (message && message.trim()) ||
+        `Please review your assigned tasks for "${sprint.name}" on the SprintSync Kanban board.`;
+
+      emailResult = await sendSprintNotificationEmail(
+        recipients,
+        sprint,
+        notifTitle,
+        notifMessage,
+        senderName
+      );
+
+      const notif = await notificationService.create({
+        title: notifTitle,
+        message: notifMessage,
+        type: 'sprint_update',
+        data: { sprintId: sprint._id || sprint.id, emailSent: !!emailResult.success },
+      });
+      emitNotification(notif);
+    }
+
+    return res.json({
+      success: true,
+      message: emailResult.success
+        ? `Notification email sent to ${recipients.length} recipient(s).`
+        : 'In-app notification created, but email delivery failed.',
+      recipientCount: recipients.length,
+      emailSent: !!emailResult.success,
+      emailProvider: emailResult.provider || null,
+      emailError: emailResult.error || null,
+      emailPreviewUrl: emailResult.previewUrl || null,
+    });
+  } catch (error) {
+    console.error('[SprintController] Notify error:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -111,11 +283,44 @@ const deleteSprint = async (req, res) => {
   }
 };
 
+/**
+ * Periodically check for active sprints whose endDate has elapsed
+ * and notify team via Brevo once (guarded by endNotified).
+ */
+async function checkExpiredSprints() {
+  if (isCheckingExpiredSprints) return;
+  isCheckingExpiredSprints = true;
+  try {
+    const sprints = await sprintService.getAll();
+    const now = new Date();
+    for (const sprint of sprints) {
+      if (sprint.status === 'active' && sprint.endDate && !sprint.endNotified) {
+        const end = new Date(sprint.endDate);
+        if (!Number.isNaN(end.getTime()) && end <= now) {
+          const sprintId = sprint._id || sprint.id;
+          const updated = await sprintService.update(sprintId, { status: 'completed' });
+          if (updated) {
+            emitSprintUpdated(updated);
+            await sendEndEmailForSprint(updated);
+            console.log(`🏁 [SprintScheduler] Sprint "${updated.name}" ended automatically; email dispatched.`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[SprintScheduler] Error checking expired sprints:', err.message);
+  } finally {
+    isCheckingExpiredSprints = false;
+  }
+}
+
 module.exports = {
   getSprints,
   getActiveSprint,
   createSprint,
   updateSprint,
   deleteSprint,
+  notifySprint,
+  checkExpiredSprints,
 };
 

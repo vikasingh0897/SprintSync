@@ -103,7 +103,7 @@ export const sprintsApi = {
     const res = await fetchWithAuth('/sprints/active');
     return await handleResponse(res);
   },
-  async create(data: { name: string; goal?: string; startDate?: string; endDate?: string; status?: string }) {
+  async create(data: { name: string; goal?: string; startDate?: string; endDate?: string; status?: string; notifyTeam?: boolean }) {
     const res = await fetchWithAuth('/sprints', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -114,6 +114,13 @@ export const sprintsApi = {
     const res = await fetchWithAuth(`/sprints/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+    return await handleResponse(res);
+  },
+  async notify(id: string, data?: { title?: string; message?: string }) {
+    const res = await fetchWithAuth(`/sprints/${id}/notify`, {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
     });
     return await handleResponse(res);
   },

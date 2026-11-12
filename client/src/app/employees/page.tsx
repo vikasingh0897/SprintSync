@@ -29,7 +29,12 @@ export default function EmployeesPage() {
   const [department, setDepartment] = useState('Engineering');
   const [avatarColor, setAvatarColor] = useState(AVATAR_COLORS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [inviteFeedback, setInviteFeedback] = useState<{ message: string; link?: string; previewUrl?: string } | null>(null);
+  const [inviteFeedback, setInviteFeedback] = useState<{
+    message: string;
+    link?: string;
+    previewUrl?: string;
+    emailError?: string;
+  } | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
 
   // Load from backend on mount
@@ -134,9 +139,12 @@ export default function EmployeesPage() {
 
       if (res.success) {
         setInviteFeedback({
-          message: `${name} has been set up! Confirmation email dispatched to ${email}.`,
+          message: res.emailSent === false
+            ? `${name} was added, but confirmation email was not delivered.`
+            : `${name} has been set up! Confirmation email dispatched to ${email}${res.emailProvider ? ` via ${res.emailProvider}` : ''}.`,
           link: res.confirmationLink,
           previewUrl: res.emailPreviewUrl,
+          emailError: res.emailError || undefined,
         });
         setName('');
         setEmail('');
@@ -157,7 +165,11 @@ export default function EmployeesPage() {
     try {
       const res = await employeesApi.resendConfirmation(empId);
       if (res.success) {
-        alert(`Confirmation email resent!\nConfirmation Link: ${res.confirmationLink}`);
+        if (res.emailSent === false) {
+          alert(`Confirmation link updated, but email failed to send:\n${res.emailError || 'Check Brevo configuration'}\n\nConfirmation Link: ${res.confirmationLink}`);
+        } else {
+          alert(`Confirmation email resent${res.emailProvider ? ` via ${res.emailProvider}` : ''}!\nConfirmation Link: ${res.confirmationLink}`);
+        }
       } else {
         alert(res.message || 'Failed to resend confirmation email.');
       }
@@ -188,6 +200,11 @@ export default function EmployeesPage() {
               <span className="material-symbols-outlined text-indigo-400 text-[24px]">mark_email_read</span>
               <div>
                 <p className="text-sm font-semibold text-white">{inviteFeedback.message}</p>
+                {inviteFeedback.emailError && (
+                  <p className="text-xs text-amber-300 mt-0.5">
+                    Email notice: {inviteFeedback.emailError}
+                  </p>
+                )}
                 {inviteFeedback.link && (
                   <p className="text-xs text-indigo-300 font-mono mt-0.5 truncate max-w-xl">
                     Invite URL: {inviteFeedback.link}

@@ -3,22 +3,46 @@ const nodemailer = require('nodemailer');
 let transporter = null;
 const devEmailOutbox = [];
 
-// Initialize transporter
+function getSenderInfo() {
+  const email =
+    (process.env.BREVO_SENDER_EMAIL ||
+      process.env.FROM_EMAIL ||
+      process.env.SMTP_USER ||
+      'no-reply@sprintsync.io').trim();
+  const name = (process.env.FROM_NAME || 'SprintSync Team').replace(/^["']|["']$/g, '').trim();
+  return { name, email };
+}
+
+function getEmailProviderInfo() {
+  if (process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim()) {
+    return { provider: 'brevo-api', sender: getSenderInfo() };
+  }
+  if ((process.env.BREVO_SMTP_USER || process.env.SMTP_USER) && (process.env.BREVO_SMTP_KEY || process.env.SMTP_PASS)) {
+    const host = process.env.SMTP_HOST || (process.env.BREVO_SMTP_KEY ? 'smtp-relay.brevo.com' : 'smtp.gmail.com');
+    return { provider: host.includes('brevo') ? 'brevo-smtp' : 'smtp', host, sender: getSenderInfo() };
+  }
+  return { provider: 'ethereal-dev', sender: getSenderInfo() };
+}
+
+// Initialize Nodemailer transporter (Brevo SMTP or configured SMTP or Ethereal dev fallback)
 async function initTransporter() {
-  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-    const cleanPass = process.env.SMTP_PASS.replace(/\s+/g, '');
+  const smtpUser = (process.env.BREVO_SMTP_USER || process.env.SMTP_USER || '').trim();
+  const smtpPass = (process.env.BREVO_SMTP_KEY || process.env.SMTP_PASS || '').replace(/\s+/g, '');
+  const smtpHost = process.env.SMTP_HOST || (process.env.BREVO_SMTP_KEY ? 'smtp-relay.brevo.com' : 'smtp.gmail.com');
+  const smtpPort = Number(process.env.SMTP_PORT) || 587;
+
+  if (smtpUser && smtpPass) {
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: Number(process.env.SMTP_PORT) === 465,
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
       auth: {
-        user: process.env.SMTP_USER.trim(),
-        pass: cleanPass,
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
-    console.log('[EmailService] Using configured SMTP transporter:', process.env.SMTP_HOST);
+    console.log(`[EmailService] Initialized SMTP transporter (${smtpHost}:${smtpPort}) as ${smtpUser}`);
   } else {
-    // Development fallback transporter (Ethereal or mock)
     try {
       const testAccount = await nodemailer.createTestAccount();
       transporter = nodemailer.createTransport({
@@ -30,10 +54,10 @@ async function initTransporter() {
           pass: testAccount.pass,
         },
       });
-      console.log('[EmailService] SMTP credentials not provided. Initialized Ethereal test mailbox for dev testing:');
+      console.log('[EmailService] No Brevo/SMTP credentials configured. Initialized Ethereal test mailbox:');
       console.log(`  User: ${testAccount.user}`);
     } catch (err) {
-      console.warn('[EmailService] Could not connect to Ethereal, using local dev mock transporter:', err.message);
+      console.warn('[EmailService] Could not connect to Ethereal, using local dev mock outbox:', err.message);
       transporter = {
         sendMail: async (mailOptions) => {
           const preview = {
@@ -41,8 +65,6 @@ async function initTransporter() {
             ...mailOptions,
             sentAt: new Date(),
           };
-          devEmailOutbox.unshift(preview);
-          if (devEmailOutbox.length > 50) devEmailOutbox.pop();
           console.log(`[EmailMock] To: ${mailOptions.to} | Subject: ${mailOptions.subject}`);
           return preview;
         },
@@ -51,29 +73,105 @@ async function initTransporter() {
   }
 }
 
-// Helper to send mail
+/**
+ * Send email via Brevo Transactional HTTP API v3 (https://api.brevo.com/v3/smtp/email)
+ * Uses HTTPS port 443 so it never gets blocked by cloud/Render SMTP port restrictions.
+ */
+async function sendViaBrevoApi({ toList, subject, html, text }) {
+  const apiKey = process.env.BREVO_API_KEY.trim();
+  const sender = getSenderInfo();
+
+  const payload = {
+    sender: { name: sender.name, email: sender.email },
+    to: toList,
+    subject,
+    htmlContent: html,
+    textContent: text || html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+  };
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'api-key': apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || `Brevo API HTTP ${response.status}`);
+  }
+
+  return { messageId: data.messageId || `brevo-${Date.now()}` };
+}
+
+/**
+ * Unified mail sender (prefers Brevo HTTP API if BREVO_API_KEY is set, otherwise Brevo SMTP / Nodemailer)
+ */
 async function sendMail({ to, subject, html, text }) {
+  const recipients = Array.isArray(to) ? to : [to];
+  const cleanRecipients = [...new Set(recipients.map((r) => (typeof r === 'string' ? r.trim() : r?.email?.trim())).filter(Boolean))];
+
+  if (cleanRecipients.length === 0) {
+    return { success: false, error: 'No recipient email address provided' };
+  }
+
+  const toObjects = cleanRecipients.map((email) => ({ email }));
+  const plainText = text || html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // 1. Try Brevo Transactional HTTP API first if BREVO_API_KEY is present
+  if (process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim()) {
+    try {
+      const info = await sendViaBrevoApi({ toList: toObjects, subject, html, text: plainText });
+      const logEntry = {
+        provider: 'brevo-api',
+        messageId: info.messageId,
+        to: cleanRecipients.join(', '),
+        subject,
+        sentAt: new Date(),
+        previewUrl: null,
+        html,
+      };
+      devEmailOutbox.unshift(logEntry);
+      if (devEmailOutbox.length > 50) devEmailOutbox.pop();
+
+      console.log(`[EmailService] Sent via Brevo API to: ${logEntry.to} | Subject: ${subject} | ID: ${info.messageId}`);
+      return { success: true, provider: 'brevo-api', messageId: info.messageId, previewUrl: null };
+    } catch (brevoErr) {
+      console.error(`[EmailService] Brevo API send failed:`, brevoErr.message);
+      // Only fall through to SMTP if SMTP creds exist; otherwise return error
+      const hasSmtp = (process.env.BREVO_SMTP_USER || process.env.SMTP_USER) && (process.env.BREVO_SMTP_KEY || process.env.SMTP_PASS);
+      if (!hasSmtp) {
+        devEmailOutbox.unshift({ provider: 'brevo-api', to: cleanRecipients.join(', '), subject, error: brevoErr.message, sentAt: new Date(), html });
+        return { success: false, provider: 'brevo-api', error: brevoErr.message };
+      }
+    }
+  }
+
+  // 2. Brevo SMTP / Configured SMTP / Ethereal fallback
   if (!transporter) {
     await initTransporter();
   }
 
-  // For Gmail SMTP, sender must match authenticated user or configured FROM_EMAIL
-  const senderEmail = process.env.FROM_EMAIL || process.env.SMTP_USER || 'no-reply@sprintsync.io';
-  const from = `"${process.env.FROM_NAME || 'SprintSync Team'}" <${senderEmail}>`;
+  const sender = getSenderInfo();
+  const from = `"${sender.name}" <${sender.email}>`;
 
   try {
     const info = await transporter.sendMail({
       from,
-      to,
+      to: cleanRecipients.join(', '),
       subject,
-      text: text || html.replace(/<[^>]+>/g, ''),
+      text: plainText,
       html,
     });
 
     const previewUrl = nodemailer.getTestMessageUrl ? nodemailer.getTestMessageUrl(info) : null;
     const logEntry = {
+      provider: getEmailProviderInfo().provider,
       messageId: info.messageId,
-      to,
+      to: cleanRecipients.join(', '),
       subject,
       sentAt: new Date(),
       previewUrl: previewUrl || null,
@@ -82,17 +180,16 @@ async function sendMail({ to, subject, html, text }) {
     devEmailOutbox.unshift(logEntry);
     if (devEmailOutbox.length > 50) devEmailOutbox.pop();
 
-    console.log(`[EmailService] Sent to: ${to} | Subject: ${subject}`);
+    console.log(`[EmailService] Sent to: ${logEntry.to} | Subject: ${subject}`);
     if (previewUrl) {
       console.log(`  🔗 Email Preview URL: ${previewUrl}`);
     }
 
-    return { success: true, messageId: info.messageId, previewUrl };
+    return { success: true, provider: logEntry.provider, messageId: info.messageId, previewUrl };
   } catch (error) {
-    console.error(`[EmailService] Failed to send email to ${to}:`, error.message);
-    // Keep in mock outbox even on transport failure
+    console.error(`[EmailService] Failed to send email to ${cleanRecipients.join(', ')}:`, error.message);
     devEmailOutbox.unshift({
-      to,
+      to: cleanRecipients.join(', '),
       subject,
       error: error.message,
       sentAt: new Date(),
@@ -148,7 +245,7 @@ async function sendEmployeeInviteEmail(employee, confirmationToken) {
         <p style="text-align: center;"><a href="${confirmationUrl}" class="link-text">${confirmationUrl}</a></p>
 
         <div class="footer">
-          This invitation was sent by your team on SprintSync. If you did not expect this invitation, you can ignore this email.
+          This invitation was sent via SprintSync. If you did not expect this invitation, you can ignore this email.
         </div>
       </div>
     </body>
@@ -222,10 +319,134 @@ async function sendTaskAssignmentEmail(employee, task, assignorName = 'Team Lead
   return await sendMail({ to: employee.email, subject, html });
 }
 
+/**
+ * 3. Sprint End / Completion Summary Email
+ */
+async function sendSprintEndedEmail(recipients, sprint, stats = {}) {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  const boardUrl = `${clientUrl}/board`;
+  const reportsUrl = `${clientUrl}/reports`;
+
+  const totalTasks = stats.totalTasks || 0;
+  const completedTasks = stats.completedTasks || 0;
+  const inProgressTasks = stats.inProgressTasks || 0;
+  const completionPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  const startStr = sprint.startDate ? new Date(sprint.startDate).toLocaleDateString() : '—';
+  const endStr = sprint.endDate ? new Date(sprint.endDate).toLocaleDateString() : '—';
+
+  const subject = `🏁 Sprint Ended: ${sprint.name} (${completionPct}% Completed)`;
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0c0e17; color: #f1f5f9; margin: 0; padding: 24px; }
+        .card { max-width: 600px; margin: 0 auto; background: #161824; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); padding: 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .logo { font-size: 24px; font-weight: 800; color: #6366f1; margin-bottom: 20px; display: inline-block; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; color: #c4b5fd; background: rgba(139,92,246,0.2); border: 1px solid rgba(139,92,246,0.35); margin-bottom: 12px; }
+        h1 { font-size: 22px; color: #ffffff; margin: 8px 0 10px 0; }
+        p { font-size: 14px; line-height: 1.6; color: #94a3b8; margin: 10px 0; }
+        .stats-grid { display: table; width: 100%; border-spacing: 10px 0; margin: 20px -10px; }
+        .stat-box { display: table-cell; width: 33.3%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; text-align: center; }
+        .stat-val { font-size: 22px; font-weight: 800; color: #ffffff; }
+        .stat-lbl { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+        .btn { display: inline-block; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #ffffff !important; padding: 12px 26px; border-radius: 10px; font-weight: 600; text-decoration: none; margin: 16px 6px; font-size: 14px; }
+        .footer { font-size: 12px; color: #64748b; margin-top: 28px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; text-align: center; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="logo">⚡ SprintSync</div>
+        <div><span class="badge">Sprint Iteration Ended</span></div>
+        <h1>${sprint.name} has concluded!</h1>
+        <p>${sprint.goal ? `<strong>Sprint Goal:</strong> ${sprint.goal}` : 'This sprint iteration has ended or been marked completed.'}</p>
+        <p style="font-size: 12px; color: #64748b;">Iteration Window: ${startStr} → ${endStr}</p>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-val" style="color: #10b981;">${completedTasks}/${totalTasks}</div>
+            <div class="stat-lbl">Tasks Done</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color: #818cf8;">${completionPct}%</div>
+            <div class="stat-lbl">Completion Rate</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color: #f59e0b;">${inProgressTasks}</div>
+            <div class="stat-lbl">Carried / Active</div>
+          </div>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${reportsUrl}" class="btn" target="_blank">View Sprint Report</a>
+          <a href="${boardUrl}" class="btn" style="background: rgba(255,255,255,0.08);" target="_blank">Open Kanban Board</a>
+        </div>
+
+        <div class="footer">
+          Sent via SprintSync & Brevo Transactional Mail. Review completed tasks and plan your next sprint iteration.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return await sendMail({ to: recipients, subject, html });
+}
+
+/**
+ * 4. Sprint / Workspace Notification Email (Manual or Status Notification)
+ */
+async function sendSprintNotificationEmail(recipients, sprint, title, message, senderName = 'Workspace Admin') {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  const boardUrl = `${clientUrl}/board`;
+
+  const subject = `📢 ${title} — ${sprint ? sprint.name : 'SprintSync Update'}`;
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0c0e17; color: #f1f5f9; margin: 0; padding: 24px; }
+        .card { max-width: 600px; margin: 0 auto; background: #161824; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); padding: 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .logo { font-size: 24px; font-weight: 800; color: #6366f1; margin-bottom: 20px; display: inline-block; }
+        h1 { font-size: 20px; color: #ffffff; margin-bottom: 12px; }
+        p { font-size: 14px; line-height: 1.6; color: #cbd5e1; margin: 12px 0; }
+        .msg-box { background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 18px; margin: 18px 0; }
+        .btn { display: inline-block; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #ffffff !important; padding: 12px 28px; border-radius: 10px; font-weight: 600; text-decoration: none; margin: 16px 0; font-size: 14px; }
+        .footer { font-size: 12px; color: #64748b; margin-top: 28px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; text-align: center; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="logo">⚡ SprintSync</div>
+        <h1>${title}</h1>
+        <p><strong>From:</strong> ${senderName}${sprint ? ` · <strong>Sprint:</strong> ${sprint.name}` : ''}</p>
+        <div class="msg-box">
+          <p style="margin: 0; color: #f8fafc;">${message}</p>
+        </div>
+        <div style="text-align: center;">
+          <a href="${boardUrl}" class="btn" target="_blank">Open Sprint Board</a>
+        </div>
+        <div class="footer">
+          SprintSync Real-time Team Notifications.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return await sendMail({ to: recipients, subject, html });
+}
+
 module.exports = {
   sendMail,
   sendEmployeeInviteEmail,
   sendTaskAssignmentEmail,
+  sendSprintEndedEmail,
+  sendSprintNotificationEmail,
   getDevEmailOutbox: () => devEmailOutbox,
+  getEmailProviderInfo,
 };
-

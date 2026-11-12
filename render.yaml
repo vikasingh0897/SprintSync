@@ -28,17 +28,22 @@ services:
         generateValue: true
       - key: JWT_EXPIRE
         value: 7d
-      # Email / SMTP Configuration
+      # Brevo Transactional Email Configuration (HTTPS API v3 - recommended for Render free tier)
+      - key: BREVO_API_KEY
+        sync: false # Set your Brevo API v3 key in Render dashboard (xkeysib-...)
+      - key: BREVO_SENDER_EMAIL
+        sync: false # Verified sender email in Brevo (e.g. vikas@web3task.com)
+      # Optional Brevo SMTP Relay / Generic SMTP Fallback
       - key: SMTP_HOST
-        value: smtp.gmail.com
+        value: smtp-relay.brevo.com
       - key: SMTP_PORT
         value: 587
       - key: SMTP_USER
-        sync: false # Set your email in Render dashboard (e.g. vikas@web3task.com)
+        sync: false # Optional Brevo SMTP login email
       - key: SMTP_PASS
-        sync: false # Set your 16-character App Password in Render dashboard (e.g. juayadwtcfgifxom)
+        sync: false # Optional Brevo SMTP key
       - key: FROM_EMAIL
-        sync: false # Set sender email (e.g. vikas@web3task.com)
+        sync: false # Fallback verified sender email
       - key: FROM_NAME
         value: "SprintSync Team"
 

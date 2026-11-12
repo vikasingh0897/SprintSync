@@ -6,6 +6,7 @@ const {
   createSprint,
   updateSprint,
   deleteSprint,
+  notifySprint,
 } = require('../controllers/sprintController');
 const { protect } = require('../middleware/auth');
 
@@ -16,6 +17,7 @@ router.route('/')
   .post(createSprint);
 
 router.get('/active', getActiveSprint);
+router.post('/:id/notify', notifySprint);
 
 router.route('/:id')
   .put(updateSprint)
