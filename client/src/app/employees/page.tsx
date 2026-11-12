@@ -190,29 +190,29 @@ export default function EmployeesPage() {
   });
 
   return (
-    <main className="min-h-screen bg-[#0c0e17] pb-24">
+    <main className="min-h-screen bg-[#0c0e17] pb-24 md:pb-12">
       {/* Page Header */}
-      <div className="max-w-7xl mx-auto px-6 pt-6 pb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-6 pb-6">
         {/* Real-time Confirmation Link Banner if available */}
         {inviteFeedback && (
           <div className="mb-6 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 animate-in slide-in-from-top-3 duration-200">
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-indigo-400 text-[24px]">mark_email_read</span>
-              <div>
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <span className="material-symbols-outlined text-indigo-400 text-[24px] shrink-0">mark_email_read</span>
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-white">{inviteFeedback.message}</p>
                 {inviteFeedback.emailError && (
-                  <p className="text-xs text-amber-300 mt-0.5">
+                  <p className="text-xs text-amber-300 mt-0.5 break-words">
                     Email notice: {inviteFeedback.emailError}
                   </p>
                 )}
                 {inviteFeedback.link && (
-                  <p className="text-xs text-indigo-300 font-mono mt-0.5 truncate max-w-xl">
+                  <p className="text-xs text-indigo-300 font-mono mt-0.5 truncate max-w-full sm:max-w-xl">
                     Invite URL: {inviteFeedback.link}
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {inviteFeedback.link && (
                 <a
                   href={inviteFeedback.link}
@@ -235,18 +235,18 @@ export default function EmployeesPage() {
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-1">
-              <span className="material-symbols-outlined text-indigo-400 align-middle mr-2">group</span>
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 tracking-tight flex items-center gap-2">
+              <span className="material-symbols-outlined text-indigo-400">group</span>
               Employees
             </h2>
-            <p className="text-sm text-gray-400">
+            <p className="text-xs sm:text-sm text-gray-400">
               {employees.length} team members across {DEPARTMENTS.length - 1} departments · Real-time setup & email confirmation
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
             {/* Search */}
-            <div className="relative w-full md:w-64">
+            <div className="relative w-full sm:w-64">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[18px]">search</span>
               <input
                 value={search}
@@ -259,7 +259,7 @@ export default function EmployeesPage() {
             {/* Invite Button */}
             <button
               onClick={() => setIsInviteModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-sm font-semibold hover:from-indigo-600 hover:to-violet-700 transition-all shadow-lg shadow-indigo-500/20 shrink-0"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-sm font-semibold hover:from-indigo-600 hover:to-violet-700 transition-all shadow-lg shadow-indigo-500/20 shrink-0"
             >
               <span className="material-symbols-outlined text-[18px]">person_add</span>
               <span>Invite Member</span>
@@ -268,12 +268,12 @@ export default function EmployeesPage() {
         </div>
 
         {/* Department Filters */}
-        <div className="flex gap-2 flex-wrap mb-6">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar sm:flex-wrap pb-1 mb-6">
           {DEPARTMENTS.map((dept) => (
             <button
               key={dept}
               onClick={() => setSelectedDept(dept)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
                 selectedDept === dept
                   ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
                   : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/5'
@@ -373,12 +373,12 @@ export default function EmployeesPage() {
       {/* ── Invite Employee Modal ── */}
       {isInviteModalOpen && (
         <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsInviteModalOpen(false);
           }}
         >
-          <div className="w-full max-w-md bg-[#1d1f29] border border-white/10 rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto custom-scrollbar bg-[#181a26] border border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
@@ -424,7 +424,7 @@ export default function EmployeesPage() {
                 <p className="text-[11px] text-gray-500 mt-1">A real-time confirmation link will be sent to this email.</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     Role *

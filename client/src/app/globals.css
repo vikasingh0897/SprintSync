@@ -3,30 +3,61 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     background-color: #0c0e17;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.12), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 0%, rgba(139, 92, 246, 0.08), transparent);
+    background-attachment: fixed;
     color: #f1f5f9;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     min-height: 100dvh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   }
 }
 
 @layer utilities {
   /* Glass card */
   .glass-card {
-    background: rgba(29, 31, 41, 0.85);
+    background: rgba(25, 27, 38, 0.85);
     backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.07);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.45);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .glass-card:hover {
-    border-color: rgba(99, 102, 241, 0.25);
-    background: rgba(29, 31, 41, 0.95);
+    border-color: rgba(99, 102, 241, 0.28);
+    background: rgba(29, 31, 43, 0.95);
   }
 
-  /* Kanban columns */
+  /* Kanban columns - responsive for mobile swipe & desktop grid */
   .kanban-column {
-    min-width: 300px;
-    max-width: 300px;
+    width: min(85vw, 310px);
+    min-width: min(85vw, 310px);
+    max-width: min(85vw, 310px);
+  }
+  @media (min-width: 640px) {
+    .kanban-column {
+      width: 312px;
+      min-width: 312px;
+      max-width: 312px;
+    }
+  }
+
+  /* Hide scrollbars cleanly while keeping scrollability */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 
   /* Custom scrollbars */
@@ -163,10 +194,14 @@ html.light {
 }
 html.light body {
   background-color: #f1f5f9;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.08), transparent);
   color: #0f172a;
 }
 html.light .bg-\[\#0c0e17\]    { background-color: #f1f5f9 !important; }
 html.light .bg-\[\#111320\]    { background-color: #e8ecf4 !important; }
+html.light .bg-\[\#161824\]    { background-color: #ffffff !important; }
+html.light .bg-\[\#181a26\]    { background-color: #f8fafc !important; }
 html.light .bg-\[\#1d1f29\]    { background-color: #ffffff !important; }
 html.light .bg-\[\#1a1c28\]    { background-color: #ffffff !important; }
 html.light .bg-\[\#282933\]    { background-color: #f8fafc !important; }

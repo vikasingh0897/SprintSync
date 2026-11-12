@@ -240,30 +240,30 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0c0e17] pb-28">
+    <main className="min-h-screen bg-[#0c0e17] pb-24 md:pb-12">
       {/* ── Hero strip ── */}
-      <div className="relative overflow-hidden border-b border-white/5 bg-[#111320]">
-        <div className="pointer-events-none absolute -top-20 -right-20 w-72 h-72 rounded-full bg-indigo-600/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-10 w-56 h-56 rounded-full bg-violet-600/15 blur-3xl" />
+      <div className="relative overflow-hidden border-b border-white/[0.06] bg-[#111320]/90">
+        <div className="pointer-events-none absolute -top-24 -right-20 w-80 h-80 rounded-full bg-indigo-600/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-10 w-64 h-64 rounded-full bg-violet-600/15 blur-3xl" />
 
-        <div className="relative max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400 mb-2 flex items-center gap-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.07] text-[11px] font-semibold uppercase tracking-wider text-indigo-300 mb-3">
               <span
                 className={`w-2 h-2 rounded-full inline-block ${
                   activeSprint ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
                 }`}
               />
               {activeSprint ? `Live · ${activeSprint.name}` : loading ? 'Syncing workspace...' : 'No Active Sprint'}
-            </p>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-white leading-tight">
+            </div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight tracking-tight">
               Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'},&nbsp;
-              <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-purple-300 bg-clip-text text-transparent">
                 {user?.name?.split(' ')[0] ?? 'there'}
               </span>
               &nbsp;👋
             </h1>
-            <p className="text-gray-400 mt-1 text-sm max-w-lg">
+            <p className="text-gray-400 mt-1.5 text-sm max-w-xl leading-relaxed">
               {activeSprint ? (
                 <>
                   Your team has completed <strong className="text-white">{completedTasks}</strong> of{' '}
@@ -282,31 +282,39 @@ export default function Home() {
 
           <Link
             href="/board"
-            className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-semibold text-sm hover:from-indigo-600 hover:to-violet-700 shadow-xl shadow-indigo-500/30 active:scale-[0.97] transition-all"
+            className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-semibold text-sm hover:from-indigo-600 hover:to-violet-700 shadow-xl shadow-indigo-500/25 active:scale-[0.98] transition-all"
           >
             <span className="material-symbols-outlined text-[20px]">
-              {activeSprint ? 'add' : 'timer'}
+              {activeSprint ? 'view_kanban' : 'timer'}
             </span>
             {activeSprint ? 'Open Sprint Board' : 'Create First Sprint'}
           </Link>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* ── Sprint progress bar ── */}
-        <div className="bg-[#1d1f29] rounded-2xl border border-white/5 px-6 py-5">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-sm font-bold text-white">
-                {activeSprint ? `${activeSprint.name} Progress` : 'Sprint Progress'}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
+        <div className="glass-card rounded-2xl px-5 sm:px-6 py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <p className="text-sm font-bold text-white">
+                  {activeSprint ? `${activeSprint.name} Progress` : 'Sprint Progress'}
+                </p>
+                {activeSprint?.startDate && activeSprint?.endDate && (
+                  <span className="text-[11px] text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-md font-medium">
+                    {new Date(activeSprint.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} →{' '}
+                    {new Date(activeSprint.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
                 {activeSprint
                   ? activeSprint.goal || 'Active iteration in progress'
                   : 'No active sprint yet — go to Board to create a sprint iteration'}
               </p>
             </div>
-            <span className="text-3xl font-black bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
+            <span className="text-2xl sm:text-3xl font-black tabular-nums bg-gradient-to-r from-indigo-300 to-violet-300 bg-clip-text text-transparent">
               {completionPct}%
             </span>
           </div>
@@ -318,7 +326,7 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_2s_infinite]" />
             </div>
           </div>
-          <div className="flex gap-6 mt-3 flex-wrap">
+          <div className="flex gap-x-5 gap-y-2 mt-3.5 flex-wrap">
             {[
               { label: 'Done', count: completedTasks, color: '#10b981' },
               { label: 'In Progress', count: inProgressTasks, color: '#f59e0b' },
@@ -328,14 +336,14 @@ export default function Home() {
               <div key={label} className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                 <span className="text-xs text-gray-400">{label}</span>
-                <span className="text-xs font-bold text-white">{count}</span>
+                <span className="text-xs font-bold text-white tabular-nums">{count}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* ── KPI cards row ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
           {[
             {
               label: 'Tasks Completed',
@@ -376,30 +384,30 @@ export default function Home() {
           ].map((card) => (
             <div
               key={card.label}
-              className={`relative bg-gradient-to-br ${card.bg} border ${card.border} rounded-2xl p-5 overflow-hidden hover:scale-[1.02] transition-transform duration-200`}
+              className={`relative bg-gradient-to-br ${card.bg} border ${card.border} rounded-2xl p-4 sm:p-5 overflow-hidden hover:-translate-y-0.5 transition-all duration-200`}
             >
               <div className="relative z-10">
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-3 sm:mb-4"
                   style={{ backgroundColor: card.color + '25' }}
                 >
-                  <span className="material-symbols-outlined text-[20px]" style={{ color: card.color }}>
+                  <span className="material-symbols-outlined text-[19px] sm:text-[20px]" style={{ color: card.color }}>
                     {card.icon}
                   </span>
                 </div>
-                <p className="text-3xl font-black text-white">{card.value}</p>
-                <p className="text-sm font-semibold text-gray-300 mt-0.5">{card.label}</p>
-                <p className="text-xs text-gray-500 mt-1">{card.sub}</p>
+                <p className="text-2xl sm:text-3xl font-black text-white tabular-nums">{card.value}</p>
+                <p className="text-xs sm:text-sm font-semibold text-gray-200 mt-0.5">{card.label}</p>
+                <p className="text-[11px] sm:text-xs text-gray-400 mt-1 truncate">{card.sub}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* ── Main 3-col grid ── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
+          <div className="lg:col-span-2 space-y-5 sm:space-y-6">
             {/* Quick Actions */}
-            <div className="bg-[#1d1f29] border border-white/5 rounded-2xl p-6">
+            <div className="glass-card rounded-2xl p-5 sm:p-6">
               <p className="text-sm font-bold text-white mb-4 flex items-center gap-2">
                 <span className="material-symbols-outlined text-indigo-400 text-[18px]">flash_on</span>
                 Quick Actions
@@ -408,31 +416,34 @@ export default function Home() {
                 {[
                   { label: 'Sprints & Board', icon: 'view_kanban', href: '/board', from: 'from-indigo-500', to: 'to-violet-600', shadow: 'shadow-indigo-500/25' },
                   { label: 'Reports', icon: 'bar_chart', href: '/reports', from: 'from-emerald-500', to: 'to-teal-600', shadow: 'shadow-emerald-500/25' },
-                  { label: 'Employees', icon: 'group', href: '/employees', from: 'from-pink-500', to: 'to-rose-600', shadow: 'shadow-pink-500/25' },
+                  { label: 'Team', icon: 'group', href: '/employees', from: 'from-pink-500', to: 'to-rose-600', shadow: 'shadow-pink-500/25' },
                   { label: 'Settings', icon: 'settings', href: '/settings', from: 'from-amber-500', to: 'to-orange-600', shadow: 'shadow-amber-500/25' },
                 ].map((a) => (
                   <Link
                     key={a.label}
                     href={a.href}
-                    className={`group flex flex-col items-center justify-center gap-2 py-5 px-3 rounded-2xl bg-gradient-to-br ${a.from} ${a.to} shadow-lg ${a.shadow} hover:scale-105 active:scale-95 transition-all duration-200`}
+                    className={`group flex flex-col items-center justify-center gap-2 py-4 sm:py-5 px-3 rounded-2xl bg-gradient-to-br ${a.from} ${a.to} shadow-lg ${a.shadow} hover:scale-[1.03] active:scale-[0.97] transition-all duration-200`}
                   >
-                    <span className="material-symbols-outlined text-white text-[28px] group-hover:scale-110 transition-transform">
+                    <span className="material-symbols-outlined text-white text-[26px] sm:text-[28px] group-hover:scale-110 transition-transform">
                       {a.icon}
                     </span>
-                    <span className="text-white text-xs font-semibold tracking-wide">{a.label}</span>
+                    <span className="text-white text-xs font-semibold tracking-wide text-center">{a.label}</span>
                   </Link>
                 ))}
               </div>
             </div>
 
             {/* Live Activity Feed */}
-            <div className="bg-[#1d1f29] border border-white/5 rounded-2xl p-6">
+            <div className="glass-card rounded-2xl p-5 sm:p-6">
               <div className="flex items-center justify-between mb-5">
                 <p className="text-sm font-bold text-white flex items-center gap-2">
                   <span className="material-symbols-outlined text-violet-400 text-[18px]">history</span>
                   Recent Activity
                 </p>
-                <span className="text-xs text-gray-500">Live sync</span>
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Live sync
+                </span>
               </div>
               <div className="space-y-4">
                 {activities.length === 0 ? (

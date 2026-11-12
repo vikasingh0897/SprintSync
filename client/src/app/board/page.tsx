@@ -380,18 +380,18 @@ export default function BoardPage() {
   };
 
   return (
-    <main className="min-h-screen pb-20 bg-[#0c0e17]">
+    <main className="min-h-screen pb-24 md:pb-10 bg-[#0c0e17]">
       {/* Page Header */}
-      <div className="max-w-7xl mx-auto px-6 pt-6 pb-2">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 flex-wrap mb-1.5">
-              <h2 className="text-2xl font-bold text-white">Kanban Board</h2>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-6 pb-2">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap mb-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Kanban Board</h2>
 
               {sprints.length > 0 && currentSprint && (
-                <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl px-3 py-1">
+                <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl px-2.5 sm:px-3 py-1 max-w-full">
                   <span
-                    className={`w-2 h-2 rounded-full ${
+                    className={`w-2 h-2 rounded-full shrink-0 ${
                       currentSprint.status === 'active'
                         ? 'bg-emerald-400 animate-pulse'
                         : currentSprint.status === 'completed'
@@ -402,7 +402,7 @@ export default function BoardPage() {
                   <select
                     value={selectedSprintId}
                     onChange={(e) => setSelectedSprintId(e.target.value)}
-                    className="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer"
+                    className="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer max-w-[160px] sm:max-w-xs truncate"
                   >
                     {sprints.map((s) => {
                       const id = s._id || s.id || '';
@@ -417,14 +417,14 @@ export default function BoardPage() {
                   <button
                     onClick={() => openEditSprintModal(currentSprint)}
                     title="Edit Sprint"
-                    className="text-gray-400 hover:text-indigo-400 p-0.5 ml-1 transition-colors"
+                    className="text-gray-400 hover:text-indigo-400 p-0.5 ml-1 transition-colors shrink-0"
                   >
                     <span className="material-symbols-outlined text-[15px]">edit</span>
                   </button>
                   <button
                     onClick={() => handleDeleteSprint(currentSprint._id || currentSprint.id || '')}
                     title="Delete Sprint"
-                    className="text-gray-400 hover:text-red-400 p-0.5 transition-colors"
+                    className="text-gray-400 hover:text-red-400 p-0.5 transition-colors shrink-0"
                   >
                     <span className="material-symbols-outlined text-[15px]">delete</span>
                   </button>
@@ -432,7 +432,7 @@ export default function BoardPage() {
               )}
 
               {currentSprint && (
-                <div className="flex items-center gap-2 text-[11px] text-gray-400 bg-white/[0.03] border border-white/5 rounded-lg px-2.5 py-1">
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-400 bg-white/[0.03] border border-white/5 rounded-lg px-2.5 py-1">
                   <span className="material-symbols-outlined text-[14px] text-indigo-400">calendar_today</span>
                   <span>
                     {formatShortDate(currentSprint.startDate)} → {formatShortDate(currentSprint.endDate)}
@@ -446,7 +446,7 @@ export default function BoardPage() {
               )}
             </div>
 
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-400 line-clamp-2">
               {currentSprint?.goal
                 ? currentSprint.goal
                 : sprints.length === 0 && !loadingSprints
@@ -455,12 +455,12 @@ export default function BoardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
             {/* Search */}
-            <div className="relative">
+            <div className="relative w-full sm:w-52">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[18px]">search</span>
               <input
-                className="bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500/40 transition-all w-44 sm:w-52"
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500/40 transition-all"
                 placeholder="Search tasks..."
                 type="text"
                 value={searchQuery}
@@ -536,20 +536,20 @@ export default function BoardPage() {
 
       {/* Empty State Banner when user has 0 sprints */}
       {!loadingSprints && sprints.length === 0 ? (
-        <div className="max-w-7xl mx-auto px-6 mt-6">
-          <div className="bg-[#161824] border border-indigo-500/25 rounded-2xl p-10 text-center relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6">
+          <div className="bg-[#161824] border border-indigo-500/25 rounded-2xl p-6 sm:p-10 text-center relative overflow-hidden">
             <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-indigo-600/10 blur-3xl" />
             <div className="relative">
               <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
                 <span className="material-symbols-outlined text-[30px]">sprint</span>
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">No Sprints Created Yet</h3>
-              <p className="text-sm text-gray-400 max-w-lg mx-auto mb-6">
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-2">No Sprints Created Yet</h3>
+              <p className="text-xs sm:text-sm text-gray-400 max-w-lg mx-auto mb-6 leading-relaxed">
                 Create your first time-boxed Sprint Iteration (1 week, 2 weeks, or custom dates) just like GitHub Projects to start planning tasks, assigning employees, and tracking real-time progress.
               </p>
               <button
                 onClick={openCreateSprintModal}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-indigo-500/25"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-indigo-500/25"
               >
                 <span className="material-symbols-outlined text-[20px]">add_circle</span>
                 Create First Sprint
@@ -564,12 +564,12 @@ export default function BoardPage() {
       {/* ── GitHub-Style Create / Edit Sprint Modal ── */}
       {isSprintModalOpen && (
         <div
-          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsSprintModalOpen(false);
           }}
         >
-          <div className="w-full max-w-lg bg-[#1d1f29] border border-white/10 rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto custom-scrollbar bg-[#181a26] border border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
@@ -636,7 +636,7 @@ export default function BoardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     Start Date
@@ -730,15 +730,15 @@ export default function BoardPage() {
       {/* ── GitHub Iterations Management Modal ── */}
       {isManageModalOpen && (
         <div
-          className="fixed inset-0 z-[290] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-[290] flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsManageModalOpen(false);
           }}
         >
-          <div className="w-full max-w-2xl bg-[#1d1f29] border border-white/10 rounded-2xl p-6 shadow-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-4">
+          <div className="w-full max-w-2xl bg-[#181a26] border border-white/10 rounded-2xl p-4 sm:p-6 shadow-2xl max-h-[88dvh] flex flex-col">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-white/5 mb-4">
               <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                   <span className="material-symbols-outlined text-indigo-400">view_timeline</span>
                   Sprint Iterations
                 </h3>
@@ -762,7 +762,7 @@ export default function BoardPage() {
             </div>
 
             {/* Filter tabs */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 mb-4">
               {(['all', 'active', 'planning', 'completed'] as const).map((tab) => (
                 <button
                   key={tab}
@@ -874,12 +874,12 @@ export default function BoardPage() {
       {/* ── Notify Team via Brevo Modal ── */}
       {isNotifyModalOpen && notifyTargetSprint && (
         <div
-          className="fixed inset-0 z-[310] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-[310] flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsNotifyModalOpen(false);
           }}
         >
-          <div className="w-full max-w-md bg-[#1d1f29] border border-white/10 rounded-2xl p-6 shadow-2xl">
+          <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto custom-scrollbar bg-[#181a26] border border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">

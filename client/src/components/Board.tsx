@@ -443,7 +443,7 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <section className="max-w-full px-6 overflow-x-auto custom-scrollbar flex items-start gap-5 pb-8 h-[calc(100vh-210px)] mt-2">
+        <section className="max-w-full px-4 sm:px-6 overflow-x-auto snap-x snap-mandatory sm:snap-none custom-scrollbar flex items-stretch gap-4 sm:gap-5 pb-8 min-h-[60dvh] lg:h-[calc(100dvh-235px)] mt-3">
           {boardData.columns.map((col) => {
             const filteredTasks = col.tasks.filter((t) =>
               t.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -455,6 +455,7 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
                 title={col.title}
                 color={col.color}
                 tasks={filteredTasks}
+                employees={employees}
                 onAddTask={(colId) => {
                   setInitialColumnForNewTask(colId);
                   setIsNewTaskModalOpen(true);
@@ -468,7 +469,7 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
 
           {/* Add Column */}
           <div
-            className="kanban-column flex flex-col items-center justify-center h-40 border-2 border-dashed border-white/10 rounded-2xl opacity-40 hover:opacity-70 transition-all shrink-0 cursor-pointer"
+            className="kanban-column snap-start flex flex-col items-center justify-center h-40 border-2 border-dashed border-white/10 hover:border-indigo-500/40 rounded-2xl bg-white/[0.015] opacity-60 hover:opacity-100 transition-all shrink-0 cursor-pointer"
             onClick={addColumn}
           >
             <button
@@ -482,7 +483,7 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
         </section>
 
         <DragOverlay>
-          {activeTask ? <TaskCard task={activeTask} /> : null}
+          {activeTask ? <TaskCard task={activeTask} employees={employees} /> : null}
         </DragOverlay>
       </DndContext>
 
@@ -504,10 +505,10 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
             if (e.target === e.currentTarget) setSelectedTask(null);
           }}
         >
-          <div className="w-full max-w-xl bg-[#1d1f29] border-l border-white/5 h-full overflow-y-auto animate-in slide-in-from-right duration-300 flex flex-col">
+          <div className="w-full max-w-xl bg-[#181a26] border-l border-white/10 h-full overflow-y-auto animate-in slide-in-from-right duration-300 flex flex-col">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-[#1d1f29]/90 backdrop-blur-md z-10 border-b border-white/5 px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="sticky top-0 bg-[#181a26]/95 backdrop-blur-md z-10 border-b border-white/5 px-4 sm:px-6 py-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <select
                   value={selectedTask.priority}
                   onChange={(e) => updateSelectedTask('priority', e.target.value)}
@@ -519,11 +520,11 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
                   <option value="Medium">🟡 Medium Priority</option>
                   <option value="High">🔴 High Priority</option>
                 </select>
-                <span className="text-gray-500 text-xs font-mono">
+                <span className="text-gray-500 text-xs font-mono truncate">
                   TASK-{selectedTask.id.substring(0, 6).toUpperCase()}
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5 shrink-0">
                 <button
                   onClick={deleteSelectedTask}
                   className="material-symbols-outlined text-red-400 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
@@ -541,7 +542,7 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 space-y-6 flex-1">
+            <div className="p-4 sm:p-6 space-y-5 flex-1">
               {/* Title input */}
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400 tracking-wider">Title</label>
@@ -549,18 +550,18 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
                   type="text"
                   value={selectedTask.title}
                   onChange={(e) => updateSelectedTask('title', e.target.value)}
-                  className="w-full bg-transparent text-xl font-bold text-white border-b border-white/10 focus:border-indigo-500 focus:outline-none pb-2 mt-1"
+                  className="w-full bg-transparent text-lg sm:text-xl font-bold text-white border-b border-white/10 focus:border-indigo-500 focus:outline-none pb-2 mt-1"
                 />
               </div>
 
               {/* Status / Column Selector */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold uppercase text-gray-400 tracking-wider">Column / Status</label>
                   <select
                     value={selectedTask.columnId}
                     onChange={(e) => updateSelectedTask('columnId', e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500/50 mt-1"
+                    className="w-full bg-[#1d1f2d] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50 mt-1 cursor-pointer"
                   >
                     {boardData.columns.map((c) => (
                       <option key={c.id} value={c.id}>{c.title}</option>
@@ -583,7 +584,7 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
                         updateSelectedTask('assignee', '');
                       }
                     }}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500/50 mt-1"
+                    className="w-full bg-[#1d1f2d] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50 mt-1 cursor-pointer"
                   >
                     <option value="">Unassigned</option>
                     {employees.map((emp) => (
@@ -596,7 +597,7 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
               {/* Assignee Email Notification note */}
               {selectedTask.assignee && (
                 <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px]">email</span>
+                  <span className="material-symbols-outlined text-[18px] shrink-0">email</span>
                   <span>
                     Assigned to <strong>{selectedTask.assignee}</strong>. Real-time email alert is dispatched on assignment.
                   </span>
@@ -616,7 +617,7 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
               </div>
 
               {/* Due Date & Points */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold uppercase text-gray-400 tracking-wider">Due Date</label>
                   <input

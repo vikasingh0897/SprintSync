@@ -83,8 +83,8 @@ export function NewTaskModal({
   const selectedEmployee = employees.find((e) => e.id === assigneeId);
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-      <div className="w-full max-w-lg bg-[#1d1f29] border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/50 animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4">
+      <div className="w-full max-w-lg bg-[#181a26] border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/60 animate-in zoom-in-95 duration-200 max-h-[92dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
           <div className="flex items-center gap-3">
@@ -136,7 +136,7 @@ export function NewTaskModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Priority */}
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Priority</label>

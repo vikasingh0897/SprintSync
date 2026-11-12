@@ -138,26 +138,26 @@ export default function ReportsPage() {
   const taskCompletionPct = allTasks.length > 0 ? Math.round((doneCount / allTasks.length) * 100) : 0;
 
   return (
-    <main className="min-h-screen bg-[#0c0e17] pb-24">
-      <div className="max-w-7xl mx-auto px-6 pt-6">
+    <main className="min-h-screen bg-[#0c0e17] pb-24 md:pb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-6">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-1">
-              <span className="material-symbols-outlined text-indigo-400 align-middle mr-2">bar_chart</span>
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 tracking-tight flex items-center gap-2">
+              <span className="material-symbols-outlined text-indigo-400">bar_chart</span>
               Performance Reports
             </h2>
-            <p className="text-sm text-gray-400">
+            <p className="text-xs sm:text-sm text-gray-400">
               {loading ? 'Loading live analytics...' : 'Real-time team performance, task completion, and individual metrics.'}
             </p>
           </div>
           {/* Date Range */}
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar sm:flex-wrap pb-1">
             {RANGE_OPTIONS.map((r) => (
               <button
                 key={r}
                 onClick={() => setSelectedRange(r)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
                   selectedRange === r
                     ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
                     : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-white/5'
@@ -170,27 +170,32 @@ export default function ReportsPage() {
         </div>
 
         {/* Top Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 mb-6 sm:mb-8">
           {[
-            { label: 'Total Completed', value: doneCount, icon: 'check_circle', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/15' },
-            { label: 'In Progress', value: inProgressCount, icon: 'pending_actions', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/15' },
-            { label: 'Pending / Backlog', value: Math.max(0, pendingCount), icon: 'hourglass_empty', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/15' },
-            { label: 'Avg Completion', value: `${avgCompletion}%`, icon: 'donut_large', color: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/15' },
-            { label: 'Avg Score', value: `${avgScore}/100`, icon: 'star', color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/15' },
-          ].map((stat) => (
-            <div key={stat.label} className={`${stat.bg} ${stat.border} border rounded-2xl p-4`}>
+            { label: 'Total Completed', value: doneCount, icon: 'check_circle', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+            { label: 'In Progress', value: inProgressCount, icon: 'pending_actions', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+            { label: 'Pending / Backlog', value: Math.max(0, pendingCount), icon: 'hourglass_empty', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
+            { label: 'Avg Completion', value: `${avgCompletion}%`, icon: 'donut_large', color: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/20' },
+            { label: 'Avg Score', value: `${avgScore}/100`, icon: 'star', color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20' },
+          ].map((stat, idx) => (
+            <div
+              key={stat.label}
+              className={`${stat.bg} ${stat.border} border rounded-2xl p-4 ${
+                idx === 4 ? 'col-span-2 sm:col-span-1' : ''
+              }`}
+            >
               <span className={`material-symbols-outlined ${stat.color} text-[20px] mb-2 block`} style={{ fontVariationSettings: "'FILL' 1" }}>
                 {stat.icon}
               </span>
-              <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-              <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
+              <p className={`text-2xl font-bold tabular-nums ${stat.color}`}>{stat.value}</p>
+              <p className="text-xs text-gray-400 mt-1">{stat.label}</p>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 mb-6">
           {/* Department Performance Chart */}
-          <div className="md:col-span-2 bg-[#1d1f29] border border-white/5 rounded-2xl p-6">
+          <div className="lg:col-span-2 glass-card rounded-2xl p-5 sm:p-6">
             <h3 className="text-base font-bold text-white mb-6 flex items-center gap-2">
               <span className="material-symbols-outlined text-indigo-400 text-[20px]">business</span>
               Department Performance
@@ -219,7 +224,7 @@ export default function ReportsPage() {
           </div>
 
           {/* Task Distribution */}
-          <div className="bg-[#1d1f29] border border-white/5 rounded-2xl p-6">
+          <div className="glass-card rounded-2xl p-5 sm:p-6">
             <h3 className="text-base font-bold text-white mb-6 flex items-center gap-2">
               <span className="material-symbols-outlined text-violet-400 text-[20px]">view_kanban</span>
               Task Distribution
@@ -275,13 +280,13 @@ export default function ReportsPage() {
         </div>
 
         {/* Top Performers Table */}
-        <div className="bg-[#1d1f29] border border-white/5 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="glass-card rounded-2xl p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-5 sm:mb-6">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <span className="material-symbols-outlined text-amber-400 text-[20px]">emoji_events</span>
               Team Performance Rankings
             </h3>
-            <span className="text-xs text-gray-500">Click a row to view details</span>
+            <span className="text-xs text-gray-400">Tap a row for details</span>
           </div>
 
           {topPerformers.length === 0 ? (
@@ -289,12 +294,12 @@ export default function ReportsPage() {
               No employees added yet. Invite team members to track real-time performance rankings.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto custom-scrollbar -mx-2 px-2">
+              <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="text-left border-b border-white/5">
                     {['Rank', 'Employee', 'Department', 'Done', 'Active', 'Pending', 'Rate', 'Score'].map((h) => (
-                      <th key={h} className="pb-3 text-xs font-semibold text-gray-500 uppercase tracking-wider pr-4">
+                      <th key={h} className="pb-3 text-xs font-semibold text-gray-500 uppercase tracking-wider pr-4 whitespace-nowrap">
                         {h}
                       </th>
                     ))}

@@ -39,7 +39,7 @@ export default function SignupPage() {
 
       <div className="w-full max-w-md relative z-10">
         {/* Card */}
-        <div className="bg-[#1a1c28]/95 backdrop-blur-2xl border border-white/8 rounded-3xl p-8 shadow-2xl shadow-black/60">
+        <div className="bg-[#181a26]/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/60">
 
           {/* Logo */}
           <div className="flex flex-col items-center mb-6">

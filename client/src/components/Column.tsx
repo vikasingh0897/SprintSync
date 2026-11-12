@@ -4,19 +4,31 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { TaskCard } from './TaskCard';
 import type { Task } from '../data/boardData';
+import type { Employee } from '../data/employees';
 
 interface ColumnProps {
   id: string;
   title: string;
   color: string;
   tasks: Task[];
+  employees?: Employee[];
   onAddTask: (columnId: string) => void;
   onTaskClick?: (task: Task) => void;
   onTitleChange: (newTitle: string) => void;
   onDeleteColumn: () => void;
 }
 
-export function Column({ id, title, color, tasks, onAddTask, onTaskClick, onTitleChange, onDeleteColumn }: ColumnProps) {
+export function Column({
+  id,
+  title,
+  color,
+  tasks,
+  employees = [],
+  onAddTask,
+  onTaskClick,
+  onTitleChange,
+  onDeleteColumn,
+}: ColumnProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
   const [showMenu, setShowMenu] = useState(false);
@@ -49,7 +61,7 @@ export function Column({ id, title, color, tasks, onAddTask, onTaskClick, onTitl
   };
 
   return (
-    <div className="kanban-column flex flex-col gap-3 shrink-0 h-full max-h-full">
+    <div className="kanban-column snap-start flex flex-col gap-3 shrink-0 h-full max-h-full bg-[#151722]/80 border border-white/[0.06] rounded-2xl p-3">
       {/* Column Header */}
       <div className="flex items-center justify-between px-1 shrink-0">
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -121,7 +133,7 @@ export function Column({ id, title, color, tasks, onAddTask, onTaskClick, onTitl
       >
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map(task => (
-            <TaskCard key={task.id} task={task} onClick={() => onTaskClick?.(task)} />
+            <TaskCard key={task.id} task={task} employees={employees} onClick={() => onTaskClick?.(task)} />
           ))}
         </SortableContext>
         {tasks.length === 0 && (

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
 import { getApiUrl } from '../../lib/api';
 import { resetSocket } from '../../lib/socket';
@@ -155,21 +156,21 @@ export default function SettingsPage() {
     { key: 'system', label: 'System', icon: 'brightness_auto',  preview: 'bg-gradient-to-br from-[#0c0e17] to-[#f1f5f9]' },
   ];
 
-  const card  = 'bg-[#1d1f29] border border-white/5 rounded-2xl p-6 mb-5';
+  const card  = 'glass-card rounded-2xl p-5 sm:p-6 mb-5';
   const label = 'block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2';
   const input = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 transition-all';
 
   return (
-    <main className="min-h-screen bg-[#0c0e17] pb-28 pt-1">
-      <div className="max-w-3xl mx-auto px-6 pt-6">
+    <main className="min-h-screen bg-[#0c0e17] pb-24 md:pb-12 pt-1">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-5 sm:pt-6">
 
         {/* ── Page header ── */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 flex items-center gap-2 tracking-tight">
             <span className="material-symbols-outlined text-indigo-400">settings</span>
             Settings
           </h2>
-          <p className="text-sm text-gray-400">Manage your account, appearance and notifications.</p>
+          <p className="text-xs sm:text-sm text-gray-400">Manage your account, appearance and notifications.</p>
         </div>
 
         {/* ── Profile ── */}
@@ -179,13 +180,13 @@ export default function SettingsPage() {
             Profile
           </h3>
 
-          <div className="flex items-center gap-5 mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-indigo-500/20 shrink-0">
+          <div className="flex items-center gap-4 sm:gap-5 mb-6">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-indigo-500/20 shrink-0">
               {displayName.charAt(0).toUpperCase() || 'U'}
             </div>
-            <div>
-              <p className="text-sm font-semibold text-white">{displayName || user?.name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{user?.email}</p>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{displayName || user?.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5 truncate">{user?.email}</p>
             </div>
           </div>
 
@@ -198,7 +199,7 @@ export default function SettingsPage() {
               <label className={label}>Email</label>
               <input type="email" value={user?.email ?? ''} disabled
                 className="w-full bg-white/3 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-gray-500 cursor-not-allowed" />
-              <p className="text-xs text-gray-600 mt-1">Email cannot be changed in demo mode</p>
+              <p className="text-xs text-gray-500 mt-1">Primary account email is managed by your workspace admin</p>
             </div>
           </div>
         </div>
@@ -313,15 +314,18 @@ export default function SettingsPage() {
             <span className="material-symbols-outlined text-emerald-400 text-[20px]">groups</span>
             Team Management
           </h3>
-          <div className="flex items-center justify-between p-4 bg-white/3 border border-white/5 rounded-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white/[0.03] border border-white/5 rounded-xl">
             <div>
               <p className="text-sm font-medium text-gray-200">Invite Team Members</p>
-              <p className="text-xs text-gray-500 mt-0.5">Send invites to add people to your workspace</p>
+              <p className="text-xs text-gray-500 mt-0.5">Send email confirmation invites via Brevo to add people</p>
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 rounded-xl text-sm font-medium hover:bg-emerald-500/25 active:scale-95 transition-all">
+            <Link
+              href="/employees"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 rounded-xl text-sm font-medium hover:bg-emerald-500/25 active:scale-95 transition-all shrink-0"
+            >
               <span className="material-symbols-outlined text-[18px]">person_add</span>
               Invite
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -338,7 +342,7 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <div>
               <label className={label}>Backend URL</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2.5">
                 <input
                   type="text"
                   value={backendUrl}
@@ -350,7 +354,7 @@ export default function SettingsPage() {
                   type="button"
                   onClick={handleTestBackend}
                   disabled={testingBackend}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shrink-0 transition flex items-center gap-1.5"
+                  className="w-full sm:w-auto justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shrink-0 transition flex items-center gap-1.5"
                 >
                   {testingBackend ? (
                     <>
@@ -375,29 +379,29 @@ export default function SettingsPage() {
                     : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
                 }`}
               >
-                <span className="material-symbols-outlined text-sm">
+                <span className="material-symbols-outlined text-sm shrink-0">
                   {backendFeedback.ok ? 'check_circle' : 'error'}
                 </span>
-                <span>{backendFeedback.message}</span>
+                <span className="break-words">{backendFeedback.message}</span>
               </div>
             )}
           </div>
         </div>
 
         {/* ── Danger zone ── */}
-        <div className="bg-red-500/5 border border-red-500/15 rounded-2xl p-6 mb-8">
+        <div className="bg-red-500/5 border border-red-500/15 rounded-2xl p-5 sm:p-6 mb-8">
           <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-red-400 text-[20px]">warning</span>
             Danger Zone
           </h3>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-gray-200">Sign Out</p>
               <p className="text-xs text-gray-500 mt-0.5">End your current session</p>
             </div>
             <button
               onClick={logout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500/15 text-red-400 border border-red-500/20 rounded-xl text-sm font-medium hover:bg-red-500/25 active:scale-95 transition-all"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-red-500/15 text-red-400 border border-red-500/20 rounded-xl text-sm font-medium hover:bg-red-500/25 active:scale-95 transition-all"
             >
               <span className="material-symbols-outlined text-[18px]">logout</span>
               Sign Out

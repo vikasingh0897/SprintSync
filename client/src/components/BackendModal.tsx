@@ -78,8 +78,8 @@ export function BackendModal({ isOpen, onClose }: BackendModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-lg rounded-2xl bg-[#161824] border border-white/10 p-6 shadow-2xl text-slate-100">
+    <div className="fixed inset-0 z-[320] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl bg-[#161824] border border-white/10 p-5 sm:p-6 shadow-2xl text-slate-100 custom-scrollbar">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg transition"
@@ -146,7 +146,7 @@ export function BackendModal({ isOpen, onClose }: BackendModalProps) {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
             <button
               type="button"
               onClick={handleResetToDefault}
