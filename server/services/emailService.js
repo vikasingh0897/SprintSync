@@ -24,8 +24,72 @@ function getEmailProviderInfo() {
   return { provider: 'ethereal-dev', sender: getSenderInfo() };
 }
 
-// Initialize Nodemailer transporter (Brevo SMTP or configured SMTP or Ethereal dev fallback)
+/**
+ * Custom Nodemailer transport backed by Brevo Transactional HTTP API v3 (https://api.brevo.com/v3/smtp/email).
+ * Uses HTTPS port 443 so Nodemailer works cleanly on Render Free Tier (which blocks outbound SMTP ports 25/465/587).
+ */
+function createBrevoNodemailerTransport(apiKey) {
+  return {
+    name: 'brevo-api',
+    version: '1.0.0',
+    send(mail, callback) {
+      const data = mail.data || {};
+      const sender = getSenderInfo();
+
+      const rawTo = Array.isArray(data.to) ? data.to : [data.to];
+      const toList = rawTo
+        .flatMap((entry) => (typeof entry === 'string' ? entry.split(',') : [entry?.address || entry?.email]))
+        .map((email) => (email || '').trim())
+        .filter(Boolean)
+        .map((email) => ({ email }));
+
+      const htmlContent = typeof data.html === 'string' ? data.html : String(data.html || '');
+      const textContent =
+        typeof data.text === 'string'
+          ? data.text
+          : htmlContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+      fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'api-key': apiKey.trim(),
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: sender.name, email: sender.email },
+          to: toList,
+          subject: data.subject || '',
+          htmlContent,
+          textContent,
+        }),
+      })
+        .then(async (res) => {
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(json.message || `Brevo API HTTP ${res.status}`);
+          }
+          callback(null, {
+            envelope: mail.message.getEnvelope(),
+            messageId: json.messageId || `brevo-${Date.now()}`,
+            accepted: toList.map((t) => t.email),
+            rejected: [],
+          });
+        })
+        .catch((err) => callback(err));
+    },
+  };
+}
+
+// Initialize Nodemailer transporter (Brevo API transport -> Brevo SMTP -> Generic SMTP -> Ethereal dev fallback)
 async function initTransporter() {
+  const brevoApiKey = (process.env.BREVO_API_KEY || '').trim();
+  if (brevoApiKey) {
+    transporter = nodemailer.createTransport(createBrevoNodemailerTransport(brevoApiKey));
+    console.log(`[EmailService] Initialized Nodemailer with Brevo API transport (HTTPS 443)`);
+    return;
+  }
+
   const smtpUser = (process.env.BREVO_SMTP_USER || process.env.SMTP_USER || '').trim();
   const smtpPass = (process.env.BREVO_SMTP_KEY || process.env.SMTP_PASS || '').replace(/\s+/g, '');
   const smtpHost = process.env.SMTP_HOST || (process.env.BREVO_SMTP_KEY ? 'smtp-relay.brevo.com' : 'smtp.gmail.com');
@@ -41,7 +105,7 @@ async function initTransporter() {
         pass: smtpPass,
       },
     });
-    console.log(`[EmailService] Initialized SMTP transporter (${smtpHost}:${smtpPort}) as ${smtpUser}`);
+    console.log(`[EmailService] Initialized Nodemailer SMTP transporter (${smtpHost}:${smtpPort}) as ${smtpUser}`);
   } else {
     try {
       const testAccount = await nodemailer.createTestAccount();
@@ -74,41 +138,7 @@ async function initTransporter() {
 }
 
 /**
- * Send email via Brevo Transactional HTTP API v3 (https://api.brevo.com/v3/smtp/email)
- * Uses HTTPS port 443 so it never gets blocked by cloud/Render SMTP port restrictions.
- */
-async function sendViaBrevoApi({ toList, subject, html, text }) {
-  const apiKey = process.env.BREVO_API_KEY.trim();
-  const sender = getSenderInfo();
-
-  const payload = {
-    sender: { name: sender.name, email: sender.email },
-    to: toList,
-    subject,
-    htmlContent: html,
-    textContent: text || html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
-  };
-
-  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      accept: 'application/json',
-      'api-key': apiKey,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.message || `Brevo API HTTP ${response.status}`);
-  }
-
-  return { messageId: data.messageId || `brevo-${Date.now()}` };
-}
-
-/**
- * Unified mail sender (prefers Brevo HTTP API if BREVO_API_KEY is set, otherwise Brevo SMTP / Nodemailer)
+ * Unified mail sender using Nodemailer (Brevo API transport, Brevo SMTP, or Ethereal fallback)
  */
 async function sendMail({ to, subject, html, text }) {
   const recipients = Array.isArray(to) ? to : [to];
@@ -118,39 +148,9 @@ async function sendMail({ to, subject, html, text }) {
     return { success: false, error: 'No recipient email address provided' };
   }
 
-  const toObjects = cleanRecipients.map((email) => ({ email }));
   const plainText = text || html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // 1. Try Brevo Transactional HTTP API first if BREVO_API_KEY is present
-  if (process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim()) {
-    try {
-      const info = await sendViaBrevoApi({ toList: toObjects, subject, html, text: plainText });
-      const logEntry = {
-        provider: 'brevo-api',
-        messageId: info.messageId,
-        to: cleanRecipients.join(', '),
-        subject,
-        sentAt: new Date(),
-        previewUrl: null,
-        html,
-      };
-      devEmailOutbox.unshift(logEntry);
-      if (devEmailOutbox.length > 50) devEmailOutbox.pop();
-
-      console.log(`[EmailService] Sent via Brevo API to: ${logEntry.to} | Subject: ${subject} | ID: ${info.messageId}`);
-      return { success: true, provider: 'brevo-api', messageId: info.messageId, previewUrl: null };
-    } catch (brevoErr) {
-      console.error(`[EmailService] Brevo API send failed:`, brevoErr.message);
-      // Only fall through to SMTP if SMTP creds exist; otherwise return error
-      const hasSmtp = (process.env.BREVO_SMTP_USER || process.env.SMTP_USER) && (process.env.BREVO_SMTP_KEY || process.env.SMTP_PASS);
-      if (!hasSmtp) {
-        devEmailOutbox.unshift({ provider: 'brevo-api', to: cleanRecipients.join(', '), subject, error: brevoErr.message, sentAt: new Date(), html });
-        return { success: false, provider: 'brevo-api', error: brevoErr.message };
-      }
-    }
-  }
-
-  // 2. Brevo SMTP / Configured SMTP / Ethereal fallback
+  // Always re-use initialized Nodemailer transporter
   if (!transporter) {
     await initTransporter();
   }
@@ -167,9 +167,11 @@ async function sendMail({ to, subject, html, text }) {
       html,
     });
 
-    const previewUrl = nodemailer.getTestMessageUrl ? nodemailer.getTestMessageUrl(info) : null;
+    const provider = getEmailProviderInfo().provider;
+    const previewUrl =
+      provider === 'ethereal-dev' && nodemailer.getTestMessageUrl ? nodemailer.getTestMessageUrl(info) : null;
     const logEntry = {
-      provider: getEmailProviderInfo().provider,
+      provider,
       messageId: info.messageId,
       to: cleanRecipients.join(', '),
       subject,
@@ -180,22 +182,24 @@ async function sendMail({ to, subject, html, text }) {
     devEmailOutbox.unshift(logEntry);
     if (devEmailOutbox.length > 50) devEmailOutbox.pop();
 
-    console.log(`[EmailService] Sent to: ${logEntry.to} | Subject: ${subject}`);
+    console.log(`[EmailService] Sent (${provider}) to: ${logEntry.to} | Subject: ${subject}`);
     if (previewUrl) {
       console.log(`  🔗 Email Preview URL: ${previewUrl}`);
     }
 
-    return { success: true, provider: logEntry.provider, messageId: info.messageId, previewUrl };
+    return { success: true, provider, messageId: info.messageId, previewUrl };
   } catch (error) {
-    console.error(`[EmailService] Failed to send email to ${cleanRecipients.join(', ')}:`, error.message);
+    const provider = getEmailProviderInfo().provider;
+    console.error(`[EmailService] Failed (${provider}) to send email to ${cleanRecipients.join(', ')}:`, error.message);
     devEmailOutbox.unshift({
+      provider,
       to: cleanRecipients.join(', '),
       subject,
       error: error.message,
       sentAt: new Date(),
       html,
     });
-    return { success: false, error: error.message };
+    return { success: false, provider, error: error.message };
   }
 }
 
