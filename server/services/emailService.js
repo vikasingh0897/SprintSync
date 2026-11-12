@@ -4,16 +4,23 @@ let transporter = null;
 const devEmailOutbox = [];
 
 function getSenderInfo() {
-  const email =
-    (process.env.BREVO_SENDER_EMAIL ||
-      process.env.FROM_EMAIL ||
-      process.env.SMTP_USER ||
-      'no-reply@sprintsync.io').trim();
+  const hasResend = Boolean(process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim());
+  const email = hasResend
+    ? (process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev').trim()
+    : (
+        process.env.BREVO_SENDER_EMAIL ||
+        process.env.FROM_EMAIL ||
+        process.env.SMTP_USER ||
+        'no-reply@sprintsync.io'
+      ).trim();
   const name = (process.env.FROM_NAME || 'SprintSync Team').replace(/^["']|["']$/g, '').trim();
   return { name, email };
 }
 
 function getEmailProviderInfo() {
+  if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim()) {
+    return { provider: 'resend-api', sender: getSenderInfo() };
+  }
   if (process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim()) {
     return { provider: 'brevo-api', sender: getSenderInfo() };
   }
@@ -22,6 +29,65 @@ function getEmailProviderInfo() {
     return { provider: host.includes('brevo') ? 'brevo-smtp' : 'smtp', host, sender: getSenderInfo() };
   }
   return { provider: 'ethereal-dev', sender: getSenderInfo() };
+}
+
+function extractEmailPayload(mail) {
+  const data = mail.data || {};
+  const sender = getSenderInfo();
+  const rawTo = Array.isArray(data.to) ? data.to : [data.to];
+  const recipients = rawTo
+    .flatMap((entry) => (typeof entry === 'string' ? entry.split(',') : [entry?.address || entry?.email]))
+    .map((email) => (email || '').trim())
+    .filter(Boolean);
+  const html = typeof data.html === 'string' ? data.html : String(data.html || '');
+  const text =
+    typeof data.text === 'string'
+      ? data.text
+      : html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  return { sender, recipients, subject: data.subject || '', html, text };
+}
+
+/**
+ * Custom Nodemailer transport backed by Resend HTTP API (https://api.resend.com/emails).
+ * Uses HTTPS port 443 so Nodemailer works cleanly on Render Free Tier (which blocks outbound SMTP ports 25/465/587).
+ */
+function createResendNodemailerTransport(apiKey) {
+  return {
+    name: 'resend-api',
+    version: '1.0.0',
+    send(mail, callback) {
+      const { sender, recipients, subject, html, text } = extractEmailPayload(mail);
+
+      fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey.trim()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: `${sender.name} <${sender.email}>`,
+          to: recipients,
+          subject,
+          html,
+          text,
+        }),
+      })
+        .then(async (res) => {
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(json.message || json.name || `Resend API HTTP ${res.status}`);
+          }
+          callback(null, {
+            envelope: mail.message.getEnvelope(),
+            messageId: json.id || `resend-${Date.now()}`,
+            accepted: recipients,
+            rejected: [],
+          });
+        })
+        .catch((err) => callback(err));
+    },
+  };
 }
 
 /**
@@ -33,21 +99,7 @@ function createBrevoNodemailerTransport(apiKey) {
     name: 'brevo-api',
     version: '1.0.0',
     send(mail, callback) {
-      const data = mail.data || {};
-      const sender = getSenderInfo();
-
-      const rawTo = Array.isArray(data.to) ? data.to : [data.to];
-      const toList = rawTo
-        .flatMap((entry) => (typeof entry === 'string' ? entry.split(',') : [entry?.address || entry?.email]))
-        .map((email) => (email || '').trim())
-        .filter(Boolean)
-        .map((email) => ({ email }));
-
-      const htmlContent = typeof data.html === 'string' ? data.html : String(data.html || '');
-      const textContent =
-        typeof data.text === 'string'
-          ? data.text
-          : htmlContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      const { sender, recipients, subject, html, text } = extractEmailPayload(mail);
 
       fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
@@ -58,10 +110,10 @@ function createBrevoNodemailerTransport(apiKey) {
         },
         body: JSON.stringify({
           sender: { name: sender.name, email: sender.email },
-          to: toList,
-          subject: data.subject || '',
-          htmlContent,
-          textContent,
+          to: recipients.map((email) => ({ email })),
+          subject,
+          htmlContent: html,
+          textContent: text,
         }),
       })
         .then(async (res) => {
@@ -72,7 +124,7 @@ function createBrevoNodemailerTransport(apiKey) {
           callback(null, {
             envelope: mail.message.getEnvelope(),
             messageId: json.messageId || `brevo-${Date.now()}`,
-            accepted: toList.map((t) => t.email),
+            accepted: recipients,
             rejected: [],
           });
         })
@@ -81,8 +133,15 @@ function createBrevoNodemailerTransport(apiKey) {
   };
 }
 
-// Initialize Nodemailer transporter (Brevo API transport -> Brevo SMTP -> Generic SMTP -> Ethereal dev fallback)
+// Initialize Nodemailer transporter (Resend API -> Brevo API -> Brevo SMTP -> Generic SMTP -> Ethereal dev fallback)
 async function initTransporter() {
+  const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
+  if (resendApiKey) {
+    transporter = nodemailer.createTransport(createResendNodemailerTransport(resendApiKey));
+    console.log(`[EmailService] Initialized Nodemailer with Resend API transport (HTTPS 443)`);
+    return;
+  }
+
   const brevoApiKey = (process.env.BREVO_API_KEY || '').trim();
   if (brevoApiKey) {
     transporter = nodemailer.createTransport(createBrevoNodemailerTransport(brevoApiKey));
