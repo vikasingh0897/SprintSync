@@ -5,10 +5,10 @@ const Employee = require('../models/Employee');
 const Task = require('../models/Task');
 const BoardColumn = require('../models/Column');
 const Notification = require('../models/Notification');
-const { INITIAL_COLUMNS, INITIAL_EMPLOYEES, INITIAL_TASKS } = require('../seedData');
+const { INITIAL_COLUMNS } = require('../seedData');
 const bcrypt = require('bcryptjs');
 
-// In-memory fallback stores
+// In-memory fallback stores (zero dummy data)
 let memUsers = [
   {
     _id: 'user-admin-001',
@@ -21,46 +21,18 @@ let memUsers = [
   },
 ];
 
-let memSprints = [
-  {
-    _id: 'sprint-001',
-    name: 'Sprint 14 - Foundation & Core',
-    goal: 'Complete real-time sprint & employee collaboration flows with email alerting',
-    startDate: new Date(),
-    endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-    status: 'active',
-  },
-];
+let memSprints = [];
 
 let memColumns = INITIAL_COLUMNS.map((c, i) => ({
   _id: `col-${i + 1}`,
   ...c,
 }));
 
-let memEmployees = INITIAL_EMPLOYEES.map((e, i) => ({
-  _id: `emp-00${i + 1}`,
-  ...e,
-  confirmationToken: e.status === 'Pending Confirmation' ? 'demo-token-12345' : null,
-}));
+let memEmployees = [];
 
-let memTasks = INITIAL_TASKS.map((t, i) => ({
-  _id: `task-00${i + 1}`,
-  ...t,
-  assigneeId: memEmployees.find((e) => e.name === t.assignee)?._id || null,
-  sprintId: 'sprint-001',
-  createdAt: new Date(),
-}));
+let memTasks = [];
 
-let memNotifications = [
-  {
-    _id: 'notif-001',
-    title: 'Welcome to SprintSync',
-    message: 'SprintSync real-time workspace is active and ready.',
-    type: 'general',
-    isRead: false,
-    createdAt: new Date(),
-  },
-];
+let memNotifications = [];
 
 function isDbActive() {
   return mongoose.connection && mongoose.connection.readyState === 1;
@@ -74,10 +46,15 @@ const sprintService = {
   },
   async getActive() {
     if (isDbActive()) return await Sprint.findOne({ status: 'active' });
-    return memSprints.find((s) => s.status === 'active') || memSprints[0] || null;
+    return memSprints.find((s) => s.status === 'active') || null;
   },
   async create(data) {
-    if (isDbActive()) return await Sprint.create(data);
+    if (isDbActive()) {
+      if (data.status === 'active') {
+        await Sprint.updateMany({ status: 'active' }, { status: 'planning' });
+      }
+      return await Sprint.create(data);
+    }
     const newSprint = {
       _id: `sprint-${Date.now()}`,
       ...data,
@@ -85,7 +62,9 @@ const sprintService = {
       updatedAt: new Date(),
     };
     if (newSprint.status === 'active') {
-      memSprints.forEach((s) => (s.status = 'planning'));
+      memSprints.forEach((s) => {
+        if (s.status === 'active') s.status = 'planning';
+      });
     }
     memSprints.push(newSprint);
     return newSprint;
@@ -93,24 +72,28 @@ const sprintService = {
   async update(id, data) {
     if (isDbActive()) {
       if (data.status === 'active') {
-        await Sprint.updateMany({ _id: { $ne: id } }, { status: 'planning' });
+        await Sprint.updateMany({ _id: { $ne: id }, status: 'active' }, { status: 'planning' });
       }
       return await Sprint.findByIdAndUpdate(id, data, { new: true });
     }
     const idx = memSprints.findIndex((s) => s._id.toString() === id.toString());
     if (idx === -1) return null;
     if (data.status === 'active') {
-      memSprints.forEach((s) => (s.status = 'planning'));
+      memSprints.forEach((s) => {
+        if (s.status === 'active') s.status = 'planning';
+      });
     }
     memSprints[idx] = { ...memSprints[idx], ...data, updatedAt: new Date() };
     return memSprints[idx];
   },
   async delete(id) {
     if (isDbActive()) {
+      await Task.deleteMany({ sprintId: id });
       return await Sprint.findByIdAndDelete(id);
     }
     const idx = memSprints.findIndex((s) => s._id.toString() === id.toString());
     if (idx === -1) return null;
+    memTasks = memTasks.filter((t) => String(t.sprintId) !== String(id));
     const removed = memSprints.splice(idx, 1)[0];
     return removed;
   },

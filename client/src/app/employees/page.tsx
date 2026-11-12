@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { EMPLOYEES as DEFAULT_EMPLOYEES, DEPARTMENTS, Employee } from '../../data/employees';
+import { DEPARTMENTS, Employee } from '../../data/employees';
 import { employeesApi, API_URL } from '../../lib/api';
 import { getSocket } from '../../lib/socket';
 
@@ -15,7 +15,8 @@ const statusColors: Record<string, string> = {
 const AVATAR_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#3b82f6', '#10b981', '#f43f5e'];
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>(DEFAULT_EMPLOYEES);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedDept, setSelectedDept] = useState('All');
   const [search, setSearch] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -35,7 +36,7 @@ export default function EmployeesPage() {
   useEffect(() => {
     employeesApi.getAll()
       .then((res) => {
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           const mapped = res.data.map((e: any) => ({
             id: e._id || e.id,
             name: e.name,
@@ -55,7 +56,8 @@ export default function EmployeesPage() {
           setEmployees(mapped);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   // Real-time socket listeners
@@ -265,7 +267,37 @@ export default function EmployeesPage() {
           ))}
         </div>
 
-        {/* Employee Grid */}
+        {/* Employee Grid / Empty State */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className="bg-[#1d1f29] border border-white/5 rounded-2xl p-5 h-44 animate-pulse" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="bg-[#1d1f29] border border-white/5 rounded-2xl p-12 text-center">
+            <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+              <span className="material-symbols-outlined text-[28px]">group_add</span>
+            </div>
+            <h3 className="text-lg font-bold text-white mb-1">
+              {employees.length === 0 ? 'No team members yet' : 'No matching employees'}
+            </h3>
+            <p className="text-xs text-gray-400 max-w-md mx-auto mb-5">
+              {employees.length === 0
+                ? 'Invite your first team member via email. They will receive a real-time confirmation link to activate their account.'
+                : 'Try adjusting your department filter or search query.'}
+            </p>
+            {employees.length === 0 && (
+              <button
+                onClick={() => setIsInviteModalOpen(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-xs font-semibold hover:from-indigo-600 hover:to-violet-700 transition-all shadow-lg shadow-indigo-500/20"
+              >
+                <span className="material-symbols-outlined text-[18px]">person_add</span>
+                Invite First Member
+              </button>
+            )}
+          </div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map((emp) => (
             <div
@@ -318,6 +350,7 @@ export default function EmployeesPage() {
             </div>
           ))}
         </div>
+        )}
       </div>
 
       {/* ── Invite Employee Modal ── */}

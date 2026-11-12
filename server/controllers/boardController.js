@@ -15,7 +15,9 @@ const getBoard = async (req, res) => {
     }
 
     const columns = await columnService.getAll();
-    const tasks = await taskService.getAll(targetSprintId ? { sprintId: targetSprintId } : {});
+    const tasks = targetSprintId
+      ? await taskService.getAll({ sprintId: targetSprintId })
+      : [];
 
     // Map tasks to their respective columns
     const columnsWithTasks = columns.map((col) => ({

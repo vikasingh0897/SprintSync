@@ -19,7 +19,7 @@ import { TaskCard } from './TaskCard';
 import { NewTaskModal } from './NewTaskModal';
 import { INITIAL_BOARD_DATA } from '../data/boardData';
 import type { Board as BoardType, Task, Column as ColumnType } from '../data/boardData';
-import { EMPLOYEES as DEFAULT_EMPLOYEES, Employee } from '../data/employees';
+import type { Employee } from '../data/employees';
 import { boardApi, tasksApi, employeesApi } from '../lib/api';
 import { getSocket } from '../lib/socket';
 
@@ -32,7 +32,7 @@ interface BoardProps {
 
 export function Board({ searchQuery = '', sprintId }: BoardProps) {
   const [boardData, setBoardData] = useState<BoardType>(INITIAL_BOARD_DATA);
-  const [employees, setEmployees] = useState<Employee[]>(DEFAULT_EMPLOYEES);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
@@ -55,7 +55,7 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
 
     employeesApi.getAll()
       .then((res) => {
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           setEmployees(
             res.data.map((e: any) => ({
               id: e._id || e.id,
@@ -84,6 +84,9 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
     const socket = getSocket();
 
     const handleTaskCreated = (newTask: any) => {
+      if (sprintId && newTask.sprintId && String(newTask.sprintId) !== String(sprintId)) {
+        return;
+      }
       const task: Task = {
         id: newTask._id || newTask.id,
         title: newTask.title,
@@ -217,7 +220,7 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
       socket.off('column:created', handleColumnCreated);
       socket.off('column:deleted', handleColumnDeleted);
     };
-  }, []);
+  }, [sprintId]);
 
   const findTask = (taskId: string): Task | null => {
     for (const col of boardData.columns) {
@@ -340,6 +343,26 @@ export function Board({ searchQuery = '', sprintId }: BoardProps) {
       dueDate: newTask.dueDate,
       storyPoints: newTask.storyPoints,
       sprintId,
+    }).then((res) => {
+      if (res.success && res.data) {
+        const realId = res.data._id || res.data.id;
+        setBoardData((prev: BoardType) => {
+          const newData = JSON.parse(JSON.stringify(prev));
+          for (const col of newData.columns) {
+            const tempIdx = col.tasks.findIndex((t: Task) => t.id === newTask.id);
+            if (tempIdx !== -1) {
+              // Remove duplicate if socket event already inserted realId
+              const hasReal = col.tasks.some((t: Task) => t.id === realId);
+              if (hasReal) {
+                col.tasks.splice(tempIdx, 1);
+              } else {
+                col.tasks[tempIdx].id = realId;
+              }
+            }
+          }
+          return newData;
+        });
+      }
     }).catch(() => {});
   };
 

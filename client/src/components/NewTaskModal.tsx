@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { TASK_CATEGORIES } from '../data/boardData';
 import type { Task, Column } from '../data/boardData';
-import { EMPLOYEES as DEFAULT_EMPLOYEES, Employee } from '../data/employees';
+import type { Employee } from '../data/employees';
 import { employeesApi } from '../lib/api';
 
 interface NewTaskModalProps {
@@ -21,7 +21,7 @@ export function NewTaskModal({
   columns = [],
   employees: passedEmployees,
 }: NewTaskModalProps) {
-  const [employees, setEmployees] = useState<Employee[]>(passedEmployees || DEFAULT_EMPLOYEES);
+  const [employees, setEmployees] = useState<Employee[]>(passedEmployees || []);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
