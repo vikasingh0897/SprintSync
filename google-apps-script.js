@@ -140,7 +140,10 @@ function doPost(e) {
 function doGet(e) {
   var format = (e && e.parameter && e.parameter.format) || "";
   var remainingQuota = MailApp.getRemainingDailyQuota();
-  var userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || "Connected Gmail";
+  var userEmail = "Connected Gmail Account";
+  try {
+    userEmail = Session.getEffectiveUser().getEmail() || "Connected Gmail Account";
+  } catch (_) {}
 
   if (format === 'json') {
     return jsonResponse({
