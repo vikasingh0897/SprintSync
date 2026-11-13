@@ -28,7 +28,12 @@ services:
         generateValue: true
       - key: JWT_EXPIRE
         value: 7d
-      # Resend Transactional Email Configuration (HTTPS API over port 443 - recommended for Render free tier)
+      # Google Apps Script Email Bridge (HTTPS API over port 443 - no custom domain needed, sends to all users via Gmail)
+      - key: GOOGLE_APPS_SCRIPT_URL
+        sync: false # Set your Google Apps Script Web App URL in Render dashboard (https://script.google.com/macros/s/.../exec)
+      - key: GOOGLE_APPS_SCRIPT_SECRET
+        sync: false # Optional shared secret token (e.g. sprintsync_apps_script_secret_2026)
+      # Resend Transactional Email Configuration (HTTPS API over port 443 - alternative if domain verified)
       - key: RESEND_API_KEY
         sync: false # Set your Resend API key in Render dashboard (re_...)
       - key: RESEND_FROM_EMAIL

@@ -4,20 +4,30 @@ let transporter = null;
 const devEmailOutbox = [];
 
 function getSenderInfo() {
+  const hasAppsScript = Boolean(process.env.GOOGLE_APPS_SCRIPT_URL && process.env.GOOGLE_APPS_SCRIPT_URL.trim());
   const hasResend = Boolean(process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim());
-  const email = hasResend
-    ? (process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev').trim()
-    : (
-        process.env.BREVO_SENDER_EMAIL ||
+  const email = hasAppsScript
+    ? (
         process.env.FROM_EMAIL ||
         process.env.SMTP_USER ||
         'no-reply@sprintsync.io'
-      ).trim();
+      ).trim()
+    : hasResend
+      ? (process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev').trim()
+      : (
+          process.env.BREVO_SENDER_EMAIL ||
+          process.env.FROM_EMAIL ||
+          process.env.SMTP_USER ||
+          'no-reply@sprintsync.io'
+        ).trim();
   const name = (process.env.FROM_NAME || 'SprintSync Team').replace(/^["']|["']$/g, '').trim();
   return { name, email };
 }
 
 function getEmailProviderInfo() {
+  if (process.env.GOOGLE_APPS_SCRIPT_URL && process.env.GOOGLE_APPS_SCRIPT_URL.trim()) {
+    return { provider: 'google-apps-script', sender: getSenderInfo() };
+  }
   if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim()) {
     return { provider: 'resend-api', sender: getSenderInfo() };
   }
@@ -46,6 +56,65 @@ function extractEmailPayload(mail) {
       : html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
   return { sender, recipients, subject: data.subject || '', html, text };
+}
+
+/**
+ * Custom Nodemailer transport backed by Google Apps Script Web App (HTTPS 443).
+ * Sends emails directly from Gmail to ANY email address with 0 cost, no domain, and no phone verification.
+ * Perfect for Render free tier (port 443 is unblocked).
+ */
+function createGoogleAppsScriptNodemailerTransport(scriptUrl, secret) {
+  return {
+    name: 'google-apps-script',
+    version: '1.0.0',
+    send(mail, callback) {
+      const { sender, recipients, subject, html, text } = extractEmailPayload(mail);
+
+      fetch(scriptUrl.trim(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify({
+          token: (secret || '').trim(),
+          to: recipients.join(', '),
+          subject,
+          html,
+          text,
+          fromName: sender.name,
+        }),
+        redirect: 'follow',
+      })
+        .then(async (res) => {
+          const rawText = await res.text().catch(() => '');
+          let json = null;
+          try {
+            json = JSON.parse(rawText);
+          } catch (_) {
+            json = null;
+          }
+
+          if (!res.ok) {
+            throw new Error(
+              (json && (json.message || json.error)) ||
+                `Google Apps Script HTTP ${res.status}: ${rawText.slice(0, 150)}`
+            );
+          }
+
+          if (json && (json.status === 'error' || json.error)) {
+            throw new Error(json.message || json.error || 'Google Apps Script reported an error');
+          }
+
+          callback(null, {
+            envelope: mail.message.getEnvelope(),
+            messageId: (json && json.messageId) || `gas-${Date.now()}`,
+            accepted: recipients,
+            rejected: [],
+          });
+        })
+        .catch((err) => callback(err));
+    },
+  };
 }
 
 /**
@@ -133,8 +202,18 @@ function createBrevoNodemailerTransport(apiKey) {
   };
 }
 
-// Initialize Nodemailer transporter (Resend API -> Brevo API -> Brevo SMTP -> Generic SMTP -> Ethereal dev fallback)
+// Initialize Nodemailer transporter (Google Apps Script -> Resend API -> Brevo API -> Brevo SMTP -> Generic SMTP -> Ethereal dev fallback)
 async function initTransporter() {
+  const appsScriptUrl = (process.env.GOOGLE_APPS_SCRIPT_URL || process.env.APPS_SCRIPT_URL || '').trim();
+  if (appsScriptUrl) {
+    const appsScriptSecret = (process.env.GOOGLE_APPS_SCRIPT_SECRET || '').trim();
+    transporter = nodemailer.createTransport(
+      createGoogleAppsScriptNodemailerTransport(appsScriptUrl, appsScriptSecret)
+    );
+    console.log(`[EmailService] Initialized Nodemailer with Google Apps Script transport (HTTPS 443)`);
+    return;
+  }
+
   const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
   if (resendApiKey) {
     transporter = nodemailer.createTransport(createResendNodemailerTransport(resendApiKey));
