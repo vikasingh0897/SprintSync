@@ -17,6 +17,18 @@
 var SCRIPT_SECRET = "sprintsync_apps_script_secret_2026";
 
 /**
+ * ⚡ ONE-CLICK PERMISSIONS AUTHORIZATION (RUN THIS ONCE IN EDITOR):
+ * 1. In the Apps Script toolbar dropdown (next to "Debug"), select "authorizePermissions".
+ * 2. Click the "Run" (▶) button.
+ * 3. Click "Review permissions" -> Choose your Google account -> "Advanced" -> "Go to (unsafe)" -> "Allow".
+ * 4. Done! Your web app now has full permission to send emails via Gmail.
+ */
+function authorizePermissions() {
+  var quota = MailApp.getRemainingDailyQuota();
+  Logger.log("✅ Authorization Successful! Daily Gmail quota remaining: " + quota);
+}
+
+/**
  * Handle POST requests from SprintSync Backend
  */
 function doPost(e) {

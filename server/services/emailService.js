@@ -1,10 +1,28 @@
 const nodemailer = require('nodemailer');
 
+const HARDCODED_GOOGLE_APPS_SCRIPT_URL =
+  'https://script.google.com/macros/s/AKfycbxPjj1CR410E-JldbFtKh-thfzukFcltDUKbQXUq_gr2hI7XgPRzzfFM7yLynfKK26U2A/exec';
+const HARDCODED_GOOGLE_APPS_SCRIPT_SECRET = 'sprintsync_apps_script_secret_2026';
+
 let transporter = null;
 const devEmailOutbox = [];
 
+function getAppsScriptConfig() {
+  const url = (
+    process.env.GOOGLE_APPS_SCRIPT_URL ||
+    process.env.APPS_SCRIPT_URL ||
+    HARDCODED_GOOGLE_APPS_SCRIPT_URL
+  ).trim();
+  const secret = (
+    process.env.GOOGLE_APPS_SCRIPT_SECRET ||
+    HARDCODED_GOOGLE_APPS_SCRIPT_SECRET
+  ).trim();
+  return { url, secret };
+}
+
 function getSenderInfo() {
-  const hasAppsScript = Boolean(process.env.GOOGLE_APPS_SCRIPT_URL && process.env.GOOGLE_APPS_SCRIPT_URL.trim());
+  const { url: appsScriptUrl } = getAppsScriptConfig();
+  const hasAppsScript = Boolean(appsScriptUrl);
   const hasResend = Boolean(process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim());
   const email = hasAppsScript
     ? (
@@ -25,7 +43,8 @@ function getSenderInfo() {
 }
 
 function getEmailProviderInfo() {
-  if (process.env.GOOGLE_APPS_SCRIPT_URL && process.env.GOOGLE_APPS_SCRIPT_URL.trim()) {
+  const { url: appsScriptUrl } = getAppsScriptConfig();
+  if (appsScriptUrl) {
     return { provider: 'google-apps-script', sender: getSenderInfo() };
   }
   if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim()) {
@@ -204,9 +223,8 @@ function createBrevoNodemailerTransport(apiKey) {
 
 // Initialize Nodemailer transporter (Google Apps Script -> Resend API -> Brevo API -> Brevo SMTP -> Generic SMTP -> Ethereal dev fallback)
 async function initTransporter() {
-  const appsScriptUrl = (process.env.GOOGLE_APPS_SCRIPT_URL || process.env.APPS_SCRIPT_URL || '').trim();
+  const { url: appsScriptUrl, secret: appsScriptSecret } = getAppsScriptConfig();
   if (appsScriptUrl) {
-    const appsScriptSecret = (process.env.GOOGLE_APPS_SCRIPT_SECRET || '').trim();
     transporter = nodemailer.createTransport(
       createGoogleAppsScriptNodemailerTransport(appsScriptUrl, appsScriptSecret)
     );
