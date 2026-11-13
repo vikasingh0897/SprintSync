@@ -1,5 +1,9 @@
 const { sprintService, employeeService, taskService, notificationService } = require('../services/dataService');
-const { sendSprintEndedEmail, sendSprintNotificationEmail } = require('../services/emailService');
+const {
+  sendSprintEndedEmail,
+  sendSprintNotificationEmail,
+  sendSprintCreatedEmail,
+} = require('../services/emailService');
 const {
   emitSprintCreated,
   emitSprintDeleted,
@@ -121,7 +125,27 @@ const createSprint = async (req, res) => {
     });
     emitNotification(notif);
 
-    // Optionally notify team via Brevo email when sprint is created
+    // ── Email Confirmation to Sprint Creator ──
+    const creatorEmail = (
+      req.user?.email ||
+      process.env.ADMIN_EMAIL ||
+      process.env.FROM_EMAIL ||
+      process.env.SMTP_USER ||
+      ''
+    ).trim();
+    const creatorName = (req.user?.name || req.user?.email || 'Sprint Lead').trim();
+    let creatorEmailResult = null;
+
+    if (creatorEmail && creatorEmail.includes('@') && !creatorEmail.endsWith('@sprintsync.io')) {
+      creatorEmailResult = await sendSprintCreatedEmail(creatorEmail, newSprint, creatorName);
+      if (creatorEmailResult?.success) {
+        console.log(`[SprintController] Sprint creation email sent to creator: ${creatorEmail}`);
+      } else {
+        console.warn(`[SprintController] Could not send sprint creation email to creator (${creatorEmail}):`, creatorEmailResult?.error);
+      }
+    }
+
+    // Optionally notify team via email when sprint is created
     let emailResult = null;
     if (notifyTeam) {
       const recipients = await getTeamRecipientEmails();
@@ -136,9 +160,11 @@ const createSprint = async (req, res) => {
     return res.status(201).json({
       success: true,
       data: newSprint,
-      emailSent: emailResult ? !!emailResult.success : undefined,
-      emailProvider: emailResult?.provider || undefined,
-      emailError: emailResult?.error || undefined,
+      creatorEmailSent: !!creatorEmailResult?.success,
+      teamEmailSent: emailResult ? !!emailResult.success : undefined,
+      emailSent: (creatorEmailResult?.success || emailResult?.success) ? true : false,
+      emailProvider: creatorEmailResult?.provider || emailResult?.provider || undefined,
+      emailError: creatorEmailResult?.error || emailResult?.error || undefined,
     });
   } catch (error) {
     console.error('[SprintController] Create error:', error);

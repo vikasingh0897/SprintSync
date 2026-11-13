@@ -601,12 +601,78 @@ async function sendSprintNotificationEmail(recipients, sprint, title, message, s
   return await sendMail({ to: recipients, subject, html });
 }
 
+/**
+ * 5. Sprint Created Confirmation Email (Sent directly to the user who created the sprint)
+ */
+async function sendSprintCreatedEmail(creatorEmail, sprint, creatorName = 'Sprint Lead') {
+  if (!creatorEmail || !creatorEmail.includes('@')) {
+    return { success: false, error: 'Invalid or missing creator email' };
+  }
+
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  const boardUrl = `${clientUrl}/board`;
+  const sprintsUrl = `${clientUrl}/sprints`;
+
+  const startStr = sprint.startDate ? new Date(sprint.startDate).toLocaleDateString() : 'Today';
+  const endStr = sprint.endDate ? new Date(sprint.endDate).toLocaleDateString() : '—';
+
+  const subject = `🎯 Sprint Created: ${sprint.name} is now live!`;
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0c0e17; color: #f1f5f9; margin: 0; padding: 24px; }
+        .card { max-width: 600px; margin: 0 auto; background: #161824; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); padding: 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .logo { font-size: 24px; font-weight: 800; color: #6366f1; margin-bottom: 20px; display: inline-block; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); margin-bottom: 12px; }
+        h1 { font-size: 22px; color: #ffffff; margin: 8px 0 10px 0; }
+        p { font-size: 14px; line-height: 1.6; color: #94a3b8; margin: 10px 0; }
+        .details-box { background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 18px; margin: 20px 0; }
+        .details-item { margin: 8px 0; font-size: 14px; color: #cbd5e1; }
+        .btn { display: inline-block; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #ffffff !important; padding: 12px 28px; border-radius: 10px; font-weight: 600; text-decoration: none; margin: 16px 6px; font-size: 14px; }
+        .footer { font-size: 12px; color: #64748b; margin-top: 28px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; text-align: center; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="logo">⚡ SprintSync</div>
+        <div><span class="badge">Sprint Created Successfully</span></div>
+        <h1>Hi ${creatorName},</h1>
+        <p>Your new sprint iteration <strong>${sprint.name}</strong> has been successfully created and is now active.</p>
+
+        <div class="details-box">
+          <div class="details-item"><strong>Sprint Name:</strong> ${sprint.name}</div>
+          ${sprint.goal ? `<div class="details-item"><strong>Sprint Goal:</strong> ${sprint.goal}</div>` : ''}
+          <div class="details-item"><strong>Start Date:</strong> ${startStr}</div>
+          <div class="details-item"><strong>End Date:</strong> ${endStr}</div>
+          <div class="details-item"><strong>Status:</strong> ${sprint.status || 'Active'}</div>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${boardUrl}" class="btn" target="_blank">Open Kanban Board</a>
+          <a href="${sprintsUrl}" class="btn" style="background: rgba(255,255,255,0.08);" target="_blank">Manage Sprints</a>
+        </div>
+
+        <div class="footer">
+          You received this confirmation email because you created sprint "${sprint.name}" on SprintSync.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return await sendMail({ to: creatorEmail, subject, html });
+}
+
 module.exports = {
   sendMail,
   sendEmployeeInviteEmail,
   sendTaskAssignmentEmail,
   sendSprintEndedEmail,
   sendSprintNotificationEmail,
+  sendSprintCreatedEmail,
   getDevEmailOutbox: () => devEmailOutbox,
   getEmailProviderInfo,
 };
